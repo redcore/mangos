@@ -38,6 +38,8 @@ libmangosgame_a_SOURCES = \
 	ArenaTeam.cpp \
 	ArenaTeam.h \
 	ArenaTeamHandler.cpp \
+	AuctionHouseBot.cpp \
+	AuctionHouseBot.h \
 	AuctionHouseHandler.cpp \
 	AuctionHouseMgr.cpp \
 	AuctionHouseMgr.h \
@@ -88,6 +90,10 @@ libmangosgame_a_SOURCES = \
 	Chat.cpp \
 	Chat.h \
 	ChatHandler.cpp \
+	ChatLexicsCutter.cpp \
+	ChatLexicsCutter.h \
+	ChatLog.cpp \
+	ChatLog.h \
 	CombatHandler.cpp \
 	ConfusedMovementGenerator.cpp \
 	ConfusedMovementGenerator.h \
@@ -205,6 +211,26 @@ libmangosgame_a_SOURCES = \
 	ObjectPosSelector.h \
 	Opcodes.cpp \
 	Opcodes.h \
+	OutdoorPvP.cpp \
+	OutdoorPvP.h \
+	OutdoorPvPEP.cpp \
+	OutdoorPvPEP.h \
+	OutdoorPvPHP.cpp \
+	OutdoorPvPHP.h \
+	OutdoorPvPMgr.cpp \
+	OutdoorPvPMgr.h \
+	OutdoorPvPNA.cpp \
+	OutdoorPvPNA.h \
+	OutdoorPvPObjectiveAI.cpp \
+	OutdoorPvPObjectiveAI.h \
+	OutdoorPvPSI.cpp \
+	OutdoorPvPSI.h \
+	OutdoorPvPTF.cpp \
+	OutdoorPvPTF.h \
+	OutdoorPvPZM.cpp \
+	OutdoorPvPZM.h \
+	OutdoorPvPLA.cpp \
+	OutdoorPvPLA.h \
 	Path.h \
 	PetAI.cpp \
 	PetAI.h \

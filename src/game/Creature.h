@@ -55,7 +55,8 @@ enum Gossip_Option
     GOSSIP_OPTION_STABLEPET         = 14,                   //UNIT_NPC_FLAG_STABLE            = 8192,
     GOSSIP_OPTION_ARMORER           = 15,                   //UNIT_NPC_FLAG_ARMORER           = 16384,
     GOSSIP_OPTION_UNLEARNTALENTS    = 16,                   //UNIT_NPC_FLAG_TRAINER (bonus option for GOSSIP_OPTION_TRAINER)
-    GOSSIP_OPTION_UNLEARNPETSKILLS  = 17                    //UNIT_NPC_FLAG_TRAINER (bonus option for GOSSIP_OPTION_TRAINER)
+    GOSSIP_OPTION_UNLEARNPETSKILLS  = 17,                   //UNIT_NPC_FLAG_TRAINER (bonus option for GOSSIP_OPTION_TRAINER)
+    GOSSIP_OPTION_OUTDOORPVP        = 18                    //UNIT_NPC_FLAG_OUTDOORPVP (option for outdoor pvp creatures)
 };
 
 enum Gossip_Guard
@@ -688,10 +689,35 @@ class MANGOS_DLL_SPEC Creature : public Unit
 
         void SendAreaSpiritHealerQueryOpcode(Player *pl);
 
+         void IncrementReceivedDamage(Unit* pAttacker, uint32 unDamage)
+         {
+             if(!pAttacker || !unDamage)
+                 return;
+
+            if(pAttacker->GetCharmerOrOwnerPlayerOrPlayerItself())
+            {
+                m_unPlayerDamageDone += unDamage;
+                return;
+            }
+            else if(pAttacker->GetTypeId() == TYPEID_UNIT)
+            {
+                //some conditions can be placed here
+                m_unUnitDamageDone += unDamage;
+                return;
+            }
+        }
+        bool AreLootAndRewardAllowed() { return (!m_unUnitDamageDone || (m_unPlayerDamageDone > m_unUnitDamageDone)); }
+        void ResetObtainedDamage()
+        {
+            m_unPlayerDamageDone = 0;
+            m_unUnitDamageDone = 0;
+        }
     protected:
         bool CreateFromProto(uint32 guidlow,uint32 Entry,uint32 team, const CreatureData *data = NULL);
         bool InitEntry(uint32 entry, uint32 team=ALLIANCE, const CreatureData* data=NULL);
 
+        uint32 m_unPlayerDamageDone;
+        uint32 m_unUnitDamageDone;
         // vendor items
         VendorItemCounts m_vendorItemCounts;
 

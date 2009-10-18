@@ -36,6 +36,7 @@
 #include "BattleGround.h"
 #include "BattleGroundAV.h"
 #include "Util.h"
+#include "OutdoorPvPMgr.h"
 
 GameObject::GameObject() : WorldObject()
 {
@@ -100,7 +101,8 @@ void GameObject::RemoveFromWorld()
     Object::RemoveFromWorld();
 }
 
-bool GameObject::Create(uint32 guidlow, uint32 name_id, Map *map, uint32 phaseMask, float x, float y, float z, float ang, float rotation0, float rotation1, float rotation2, float rotation3, uint32 animprogress, GOState go_state)
+
+bool GameObject::Create(uint32 guidlow, uint32 name_id, Map *map, uint32 phaseMask, float x, float y, float z, float ang, float rotation0, float rotation1, float rotation2, float rotation3, uint32 animprogress, GOState go_state, uint8 ArtKit)
 {
     ASSERT(map);
     Relocate(x,y,z,ang);
@@ -149,6 +151,8 @@ bool GameObject::Create(uint32 guidlow, uint32 name_id, Map *map, uint32 phaseMa
     SetGoType(GameobjectTypes(goinfo->type));
     SetGoArtKit(0);                                         // unknown what this is
     SetGoAnimProgress(animprogress);
+
+    SetGoArtKit(ArtKit);
 
     //Notify the map's instance data.
     //Only works if you create the object in it, not if it is moves to that map.
@@ -537,6 +541,7 @@ void GameObject::SaveToDB(uint32 mapid, uint8 spawnMask, uint32 phaseMask)
     data.animprogress = GetGoAnimProgress();
     data.go_state = GetGoState();
     data.spawnMask = spawnMask;
+    data.ArtKit = GetGoArtKit();
 
     // updated in DB
     std::ostringstream ss;
@@ -590,10 +595,13 @@ bool GameObject::LoadFromDB(uint32 guid, Map *map)
     uint32 animprogress = data->animprogress;
     GOState go_state = data->go_state;
 
+	uint8 ArtKit = data->ArtKit;
+
     m_DBTableGuid = guid;
     if (map->GetInstanceId() != 0) guid = objmgr.GenerateLowGuid(HIGHGUID_GAMEOBJECT);
 
-    if (!Create(guid,entry, map, phaseMask, x, y, z, ang, rotation0, rotation1, rotation2, rotation3, animprogress, go_state) )
+
+    if (!Create(guid,entry, map, phaseMask, x, y, z, ang, rotation0, rotation1, rotation2, rotation3, animprogress, go_state, ArtKit) )
         return false;
 
     if (!GetGOInfo()->GetDespawnPossibility() && !GetGOInfo()->IsDespawnAtAction() && data->spawntimesecs >= 0)
@@ -1105,12 +1113,30 @@ void GameObject::Use(Unit* user)
                 return;
 
             spellId = info->summoningRitual.spellId;
-            if(spellId==62330)                              // GO store not existed spell, replace by expected
+            switch (spellId)                              // GO store not existed spell, replace by expected
             {
-                // spell have reagent and mana cost but it not expected use its
-                // it triggered spell in fact casted at currently channeled GO
-                spellId = 61993;
-                triggered = true;
+                case 62330:
+                {
+                    // spell have reagent and mana cost but it not expected use its
+                    // it triggered spell in fact casted at currently channeled GO
+                    spellId = 61993;
+                    triggered = true;
+                    break;
+                }
+                case 34145:
+                {
+                    spellId = 29886;
+                    triggered = true;
+                    break;
+                }
+                case 58888:
+                {
+                    spellId = 58889;
+                    triggered = true;
+                    break;
+                }
+                default:
+                    break;
             }
 
             // finish spell
@@ -1277,7 +1303,10 @@ void GameObject::Use(Unit* user)
     SpellEntry const *spellInfo = sSpellStore.LookupEntry( spellId );
     if(!spellInfo)
     {
-        sLog.outError("WORLD: unknown spell id %u at use action for gameobject (Entry: %u GoType: %u )", spellId,GetEntry(),GetGoType());
+        if(user->GetTypeId()!=TYPEID_PLAYER || !sOutdoorPvPMgr.HandleCustomSpell((Player*)user,spellId,this))
+            sLog.outError("WORLD: unknown spell id %u at use action for gameobject (Entry: %u GoType: %u )", spellId,GetEntry(),GetGoType());
+        else
+            sLog.outDebug("WORLD: %u non-dbc spell was handled by OutdoorPvP", spellId);
         return;
     }
 
@@ -1285,7 +1314,14 @@ void GameObject::Use(Unit* user)
 
     // spell target is user of GO
     SpellCastTargets targets;
-    targets.setUnitTarget( user );
+    if (spellId == 18541) // Ritual of Doom must select random target from participants
+    {
+        std::set<uint32>::const_iterator it = m_unique_users.begin();
+        std::advance(it,urand(0,m_unique_users.size()-1));
+        targets.setUnitTarget(Unit::GetUnit(*this,uint64(*it)));
+    }
+    else
+        targets.setUnitTarget( user );
 
     spell->prepare(&targets);
 }

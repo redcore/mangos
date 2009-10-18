@@ -1265,14 +1265,16 @@ void ObjectMgr::LoadGameobjects()
         }
 
         data.animprogress   = fields[12].GetUInt32();
-
         uint32 go_state     = fields[13].GetUInt32();
+
         if (go_state >= MAX_GO_STATE)
         {
             sLog.outErrorDb("Table `gameobject` have gameobject (GUID: %u Entry: %u) with invalid `state` (%u) value, skip", guid, data.id, go_state);
             continue;
         }
+
         data.go_state       = GOState(go_state);
+        data.ArtKit         = 0;
 
         data.spawnMask      = fields[14].GetUInt8();
         data.phaseMask      = fields[15].GetUInt16();
@@ -5293,6 +5295,54 @@ bool ObjectMgr::AddGraveYardLink(uint32 id, uint32 zoneId, uint32 team, bool inD
     return true;
 }
 
+void ObjectMgr::RemoveGraveYardLink(uint32 id, uint32 zoneId, uint32 team, bool inDB)
+{
+    GraveYardMap::iterator graveLow  = mGraveYardMap.lower_bound(zoneId);
+    GraveYardMap::iterator graveUp   = mGraveYardMap.upper_bound(zoneId);
+    if(graveLow==graveUp)
+    {
+        //sLog.outErrorDb("Table `game_graveyard_zone` incomplete: Zone %u Team %u does not have a linked graveyard.",zoneId,team);
+        return;
+    }
+
+    bool found = false;
+
+    GraveYardMap::iterator itr;
+
+    for(itr = graveLow; itr != graveUp; ++itr)
+    {
+        GraveYardData & data = itr->second;
+
+        // skip not matching safezone id
+        if(data.safeLocId != id)
+            continue;
+
+        // skip enemy faction graveyard at same map (normal area, city, or battleground)
+        // team == 0 case can be at call from .neargrave
+        if(data.team != 0 && team != 0 && data.team != team)
+            continue;
+
+        found = true;
+        break;
+    }
+
+    // no match, return
+    if(!found)
+        return;
+
+    // remove from links
+    mGraveYardMap.erase(itr);
+
+    // remove link from DB
+    if(inDB)
+    {
+        WorldDatabase.PExecute("DELETE FROM game_graveyard_zone WHERE id = '%u' AND ghost_zone = '%u' AND faction = '%u'",id,zoneId,team);
+    }
+
+    return;
+}
+
+
 void ObjectMgr::LoadAreaTriggerTeleports()
 {
     mAreaTriggers.clear();                                  // need for reload case
@@ -7047,6 +7097,46 @@ const char *ObjectMgr::GetMangosString(int32 entry, int locale_idx) const
     return "<error>";
 }
 
+void ObjectMgr::LoadSpellDisabledEntrys()
+{
+    m_spell_disabled.clear();                                // need for reload case
+    QueryResult *result = WorldDatabase.Query("SELECT entry, ischeat_spell FROM spell_disabled where active=1");
+
+    uint32 total_count = 0;
+    uint32 cheat_spell_count=0;
+
+    if( !result )
+    {
+        barGoLink bar( 1 );
+        bar.step();
+
+        sLog.outString();
+        sLog.outString( ">> Loaded %u disabled spells", total_count );
+        return;
+    }
+
+    barGoLink bar( result->GetRowCount() );
+
+    Field* fields;
+    do
+    {
+        bar.step();
+        fields = result->Fetch();
+        uint32 spellid = fields[0].GetUInt32();
+        bool ischeater = fields[1].GetBool();
+        m_spell_disabled[spellid] = ischeater;
+        ++total_count;
+        if(ischeater)
+        ++cheat_spell_count;
+
+    } while ( result->NextRow() );
+
+    delete result;
+
+    sLog.outString();
+    sLog.outString( ">> Loaded %u disabled spells ( %u - is cheaters spells)", total_count, cheat_spell_count);
+}
+
 void ObjectMgr::LoadFishingBaseSkillLevel()
 {
     mFishingBaseForArea.clear();                            // for reload case
@@ -7115,8 +7205,14 @@ uint16 ObjectMgr::GetConditionId( ConditionType condition, uint32 value1, uint32
     return mConditions.size() - 1;
 }
 
-bool ObjectMgr::CheckDeclinedNames( std::wstring mainpart, DeclinedName const& names )
+bool ObjectMgr::CheckDeclinedNames( std::wstring w_ownname, DeclinedName const& names )
 {
+	// get main part of the name
+	std::wstring mainpart = GetMainPartOfName(w_ownname, 0);
+	// prepare flags
+	bool x = true;
+	bool y = true;
+	// check declined names
     for(int i =0; i < MAX_DECLINED_NAME_CASES; ++i)
     {
         std::wstring wname;
@@ -7124,9 +7220,12 @@ bool ObjectMgr::CheckDeclinedNames( std::wstring mainpart, DeclinedName const& n
             return false;
 
         if(mainpart!=GetMainPartOfName(wname,i+1))
-            return false;
+            x = false;
+
+		if(w_ownname!=wname)
+			y = false;
     }
-    return true;
+    return (x||y);
 }
 
 uint32 ObjectMgr::GetAreaTriggerScriptId(uint32 trigger_id)

@@ -103,6 +103,7 @@ enum SpellSpecific
     SPELL_FOOD              = 20,
     SPELL_DRINK             = 21,
     SPELL_FOOD_AND_DRINK    = 22,
+    SPELL_MAGE_BOMB         = 23,
 };
 
 SpellSpecific GetSpellSpecific(uint32 spellId);
@@ -384,6 +385,15 @@ inline SpellSchoolMask GetSpellSchoolMask(SpellEntry const* spellInfo)
     return SpellSchoolMask(spellInfo->SchoolMask);
 }
 
+inline SpellSchoolMask GetAllSpellImmunityMask(SpellEntry const* spellInfo)
+{
+    uint32 mask = 0;
+    for (int i=0; i< 3; ++i)
+        if (spellInfo->EffectMiscValue[i] && spellInfo->EffectApplyAuraName[i] == SPELL_AURA_SCHOOL_IMMUNITY)
+            mask |= spellInfo->EffectMiscValue[i];
+    return SpellSchoolMask(mask);
+}
+
 inline uint32 GetSpellMechanicMask(SpellEntry const* spellInfo, int32 effect)
 {
     uint32 mask = 0;
@@ -468,7 +478,10 @@ enum ProcFlags
    PROC_FLAG_ON_TRAP_ACTIVATION            = 0x00200000,    // 21 On trap activation
 
    PROC_FLAG_TAKEN_OFFHAND_HIT             = 0x00400000,    // 22 Taken off-hand melee attacks(not used)
-   PROC_FLAG_SUCCESSFUL_OFFHAND_HIT        = 0x00800000     // 23 Successful off-hand melee attacks
+   PROC_FLAG_SUCCESSFUL_OFFHAND_HIT        = 0x00800000,    // 23 Successful off-hand melee attacks
+
+   PROC_FLAG_ON_DEATH                      = 0x01000000,     // 24 On caster's death
+   PROC_FLAG_ON_AURA_REMOVE                = 0x02000000     // 25 On Aura remove
 };
 
 #define MELEE_BASED_TRIGGER_MASK (PROC_FLAG_SUCCESSFUL_MELEE_HIT        | \
@@ -496,7 +509,7 @@ enum ProcFlagsEx
    PROC_EX_ABSORB              = 0x0000400,
    PROC_EX_REFLECT             = 0x0000800,
    PROC_EX_INTERRUPT           = 0x0001000,                 // Melee hit result can be Interrupt (not used)
-   PROC_EX_RESERVED1           = 0x0002000,
+   PROC_EX_DISPEL              = 0x0002000,
    PROC_EX_RESERVED2           = 0x0004000,
    PROC_EX_RESERVED3           = 0x0008000,
    PROC_EX_EX_TRIGGER_ALWAYS   = 0x0010000,                 // If set trigger always ( no matter another flags) used for drop charges
