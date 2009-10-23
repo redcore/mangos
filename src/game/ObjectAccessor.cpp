@@ -50,21 +50,6 @@ ObjectAccessor::~ObjectAccessor()
         delete itr->second;
 }
 
-Creature*
-ObjectAccessor::GetCreatureOrPetOrVehicle(WorldObject const &u, uint64 guid)
-{
-    if(IS_PLAYER_GUID(guid) || !u.IsInWorld())
-        return NULL;
-
-    if(IS_PET_GUID(guid))
-        return u.GetMap()->GetPet(guid);
-
-    if(IS_VEHICLE_GUID(guid))
-        return u.GetMap()->GetVehicle(guid);
-
-    return u.GetMap()->GetCreature(guid);
-}
-
 Unit*
 ObjectAccessor::GetUnit(WorldObject const &u, uint64 guid)
 {
@@ -74,7 +59,10 @@ ObjectAccessor::GetUnit(WorldObject const &u, uint64 guid)
     if(IS_PLAYER_GUID(guid))
         return FindPlayer(guid);
 
-    return GetCreatureOrPetOrVehicle(u, guid);
+    if (!u.IsInWorld())
+        return NULL;
+
+    return u.GetMap()->GetCreatureOrPetOrVehicle(guid);
 }
 
 Corpse*
@@ -180,18 +168,6 @@ ObjectAccessor::SaveAllPlayers()
     HashMapHolder<Player>::MapType::iterator itr = m.begin();
     for(; itr != m.end(); ++itr)
         itr->second->SaveToDB();
-}
-
-Pet*
-ObjectAccessor::GetPet(uint64 guid)
-{
-    return GetObjectInWorld(guid, (Pet*)NULL);
-}
-
-Vehicle*
-ObjectAccessor::GetVehicle(uint64 guid)
-{
-    return GetObjectInWorld(guid, (Vehicle*)NULL);
 }
 
 Corpse*
@@ -331,31 +307,6 @@ ObjectAccessor::ConvertCorpseForPlayer(uint64 player_guid, bool insignia)
     return bones;
 }
 
-void
-ObjectAccessor::Update(uint32 diff)
-{
-    UpdateDataMapType update_players;
-    {
-        Guard guard(i_updateGuard);
-        while(!i_objects.empty())
-        {
-            Object* obj = *i_objects.begin();
-            i_objects.erase(i_objects.begin());
-            if (!obj)
-                continue;
-            obj->BuildUpdateData(update_players);
-        }
-    }
-
-    WorldPacket packet;                                     // here we allocate a std::vector with a size of 0x10000
-    for(UpdateDataMapType::iterator iter = update_players.begin(); iter != update_players.end(); ++iter)
-    {
-        iter->second.BuildPacket(&packet);
-        iter->first->GetSession()->SendPacket(&packet);
-        packet.clear();                                     // clean the string
-    }
-}
-
 /// Define the static member of HashMapHolder
 
 template <class T> UNORDERED_MAP< uint64, T* > HashMapHolder<T>::m_objectMap;
@@ -368,11 +319,3 @@ template class HashMapHolder<Corpse>;
 
 /// Define the static member of ObjectAccessor
 std::list<Map*> ObjectAccessor::i_mapList;
-
-template Player* ObjectAccessor::GetObjectInWorld<Player>(uint32 mapid, float x, float y, uint64 guid, Player* /*fake*/);
-template Pet* ObjectAccessor::GetObjectInWorld<Pet>(uint32 mapid, float x, float y, uint64 guid, Pet* /*fake*/);
-template Vehicle* ObjectAccessor::GetObjectInWorld<Vehicle>(uint32 mapid, float x, float y, uint64 guid, Vehicle* /*fake*/);
-template Creature* ObjectAccessor::GetObjectInWorld<Creature>(uint32 mapid, float x, float y, uint64 guid, Creature* /*fake*/);
-template Corpse* ObjectAccessor::GetObjectInWorld<Corpse>(uint32 mapid, float x, float y, uint64 guid, Corpse* /*fake*/);
-template GameObject* ObjectAccessor::GetObjectInWorld<GameObject>(uint32 mapid, float x, float y, uint64 guid, GameObject* /*fake*/);
-template DynamicObject* ObjectAccessor::GetObjectInWorld<DynamicObject>(uint32 mapid, float x, float y, uint64 guid, DynamicObject* /*fake*/);
