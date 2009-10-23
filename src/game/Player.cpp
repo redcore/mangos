@@ -2072,49 +2072,34 @@ void Player::RegenerateHealth(uint32 diff)
     ModifyHealth(int32(addvalue));
 }
 
-bool Player::CanInteractWithNPCs(bool alive) const
-{
-    if(alive && !isAlive())
-        return false;
-    if(isInFlight())
-        return false;
-
-    return true;
-}
-
-Creature*
-Player::GetNPCIfCanInteractWith(uint64 guid, uint32 npcflagmask)
+Creature* Player::GetNPCIfCanInteractWith(uint64 guid, uint32 npcflagmask)
 {
     // unit checks
-    if (!guid)
-        return NULL;
-
-    if(!IsInWorld())
+    if (!guid || !IsInWorld() || isInFlight())
         return NULL;
 
     // exist (we need look pets also for some interaction (quest/etc)
-    Creature *unit = ObjectAccessor::GetCreatureOrPetOrVehicle(*this,guid);
+    Creature *unit = GetMap()->GetCreatureOrPetOrVehicle(guid);
     if (!unit)
         return NULL;
 
-    // player check
-    if(!CanInteractWithNPCs(!unit->isSpiritService()))
-        return NULL;
-
     // appropriate npc type
-    if(npcflagmask && !unit->HasFlag( UNIT_NPC_FLAGS, npcflagmask ))
+    if (npcflagmask && !unit->HasFlag( UNIT_NPC_FLAGS, npcflagmask ))
         return NULL;
 
-    // alive or spirit healer
-    if(!unit->isAlive() && (!unit->isSpiritService() || isAlive() ))
+    // if a dead unit should be able to talk - the creature must be alive and have special flags
+    if (!unit->isAlive())
+        return NULL;
+
+    if (isAlive() && unit->isInvisibleForAlive())
         return NULL;
 
     // not allow interaction under control, but allow with own pets
-    if(unit->GetCharmerGUID())
+    if (unit->GetCharmerGUID())
         return NULL;
 
     // not enemy
-    if( unit->IsHostileTo(this))
+    if (unit->IsHostileTo(this))
         return NULL;
 
     // not unfriendly
@@ -12174,8 +12159,7 @@ void Player::PrepareQuestMenu( uint64 guid )
     QuestRelations* pObjectQIR;
 
     // pets also can have quests
-    Creature *pCreature = ObjectAccessor::GetCreatureOrPetOrVehicle(*this, guid);
-    if( pCreature )
+    if (Creature *pCreature = GetMap()->GetCreatureOrPetOrVehicle(guid))
     {
         pObject = (Object*)pCreature;
         pObjectQR  = &objmgr.mCreatureQuestRelations;
@@ -12269,8 +12253,7 @@ void Player::SendPreparedQuest(uint64 guid)
         std::string title = "";
 
         // need pet case for some quests
-        Creature *pCreature = ObjectAccessor::GetCreatureOrPetOrVehicle(*this,guid);
-        if (pCreature)
+        if (Creature *pCreature = GetMap()->GetCreatureOrPetOrVehicle(guid))
         {
             uint32 textid = pCreature->GetNpcTextId();
             GossipText const* gossiptext = objmgr.GetGossipText(textid);
@@ -12333,8 +12316,7 @@ Quest const * Player::GetNextQuest( uint64 guid, Quest const *pQuest )
     QuestRelations* pObjectQR;
     QuestRelations* pObjectQIR;
 
-    Creature *pCreature = ObjectAccessor::GetCreatureOrPetOrVehicle(*this,guid);
-    if( pCreature )
+    if (Creature *pCreature = GetMap()->GetCreatureOrPetOrVehicle(guid))
     {
         pObject = (Object*)pCreature;
         pObjectQR  = &objmgr.mCreatureQuestRelations;
@@ -12570,6 +12552,13 @@ bool Player::CanRewardQuest( Quest const *pQuest, uint32 reward, bool msg )
     }
 
     return true;
+}
+
+void Player::SendPetTameFailure(PetTameFailureReason reason)
+{
+    WorldPacket data(SMSG_PET_TAME_FAILURE, 1);
+    data << uint8(reason);
+    GetSession()->SendPacket(&data);
 }
 
 void Player::AddQuest( Quest const *pQuest, Object *questGiver )
@@ -14829,10 +14818,10 @@ void Player::_LoadAuras(QueryResult *result, uint32 timediff)
             // negative effects should continue counting down after logout
             if (remaintime != -1 && !IsPositiveEffect(spellid, effindex))
             {
-                if(remaintime  <= int32(timediff))
+                if (remaintime/IN_MILISECONDS <= int32(timediff))
                     continue;
 
-                remaintime -= timediff;
+                remaintime -= timediff*IN_MILISECONDS;
             }
 
             // prevent wrong values of remaincharges
@@ -18838,7 +18827,7 @@ void Player::UpdateForQuestWorldObjects()
         }
         else if(IS_CREATURE_GUID(*itr) || IS_VEHICLE_GUID(*itr))
         {
-            Creature *obj = ObjectAccessor::GetCreatureOrPetOrVehicle(*this, *itr);
+            Creature *obj = GetMap()->GetCreatureOrPetOrVehicle(*itr);
             if(!obj)
                 continue;
 
