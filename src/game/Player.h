@@ -52,6 +52,7 @@ class UpdateMask;
 class SpellCastTargets;
 class PlayerSocial;
 class Vehicle;
+class OutdoorPvP;
 
 typedef std::deque<Mail*> PlayerMails;
 
@@ -161,7 +162,7 @@ struct ActionButton
     void SetActionAndType(uint32 action, ActionButtonType type)
     {
         uint32 newData = action | (uint32(type) << 24);
-        if (newData != packedData)
+        if (newData != packedData || uState == ACTIONBUTTON_DELETED)
         {
             packedData = newData;
             if (uState != ACTIONBUTTON_NEW)
@@ -802,6 +803,16 @@ struct MovementInfo
     void SetMovementFlags(MovementFlags f) { flags = f; }
 };
 
+ //here stored last safe player's position
+struct SafePosition
+{
+    float x, y, z;
+    SafePosition()
+    {
+        x = y = z = 0.0f;
+    }
+};
+
 // flags that use in movement check for example at spell casting
 MovementFlags const movementFlagsMask = MovementFlags(
     MOVEMENTFLAG_FORWARD |MOVEMENTFLAG_BACKWARD  |MOVEMENTFLAG_STRAFE_LEFT|MOVEMENTFLAG_STRAFE_RIGHT|
@@ -1389,6 +1400,7 @@ class MANGOS_DLL_SPEC Player : public Unit
 
         bool LoadFromDB(uint32 guid, SqlQueryHolder *holder);
 
+        bool MinimalLoadFromDB(QueryResult *result, uint32 guid);
         static bool   LoadValuesArrayFromDB(Tokens& data,uint64 guid);
         static uint32 GetUInt32ValueFromArray(Tokens const& data, uint16 index);
         static float  GetFloatValueFromArray(Tokens const& data, uint16 index);
@@ -1713,7 +1725,7 @@ class MANGOS_DLL_SPEC Player : public Unit
         void ApplySpellPowerBonus(int32 amount, bool apply);
         void UpdateSpellDamageAndHealingBonus();
 
-        void CalculateMinMaxDamage(WeaponAttackType attType, bool normalized, float& min_damage, float& max_damage);
+        void CalculateMinMaxDamage(WeaponAttackType attType, bool normalized, bool addTotalPct, float& min_damage, float& max_damage);
 
         void UpdateDefenseBonusesMod();
         void ApplyRatingMod(CombatRating cr, int32 value, bool apply);
@@ -2060,6 +2072,30 @@ class MANGOS_DLL_SPEC Player : public Unit
         bool CanCaptureTowerPoint();
 
         /*********************************************************/
+        /***               OUTDOOR PVP SYSTEM                  ***/
+        /*********************************************************/
+
+        /* Handlers */
+
+        bool Script_HandleCaptureCreaturePlayerMoveInLos(Creature* c);
+
+        void Script_HandleGossipOption(uint64 guid, uint32 gossipid);
+
+        bool Script_CanTalkTo(Creature* creature, GossipOption& gso);
+
+        void Script_HandleDropFlag(uint32 spellId);
+
+        bool Script_HandleOpenGo(uint64 guid);
+
+        /* Getters/Setters */
+
+        OutdoorPvP* GetOutdoorPvP() const { return m_OutdoorPvP; }
+        void SetOutdoorPvP(OutdoorPvP* pvp) { m_OutdoorPvP = pvp; }
+
+        // returns true if the player is in active state for outdoor pvp objective capturing, false otherwise
+        bool IsOutdoorPvPActive();
+
+        /*********************************************************/
         /***                    REST SYSTEM                    ***/
         /*********************************************************/
 
@@ -2086,7 +2122,9 @@ class MANGOS_DLL_SPEC Player : public Unit
         /***                 VARIOUS SYSTEMS                   ***/
         /*********************************************************/
         MovementInfo m_movementInfo;
+        SafePosition m_safeposition;
         bool HasMovementFlag(MovementFlags f) const;        // for script access to m_movementInfo.HasMovementFlag
+
         void UpdateFallInformationIfNeed(MovementInfo const& minfo,uint16 opcode);
         Unit *m_mover;
         void SetFallInformation(uint32 time, float z)
@@ -2095,6 +2133,8 @@ class MANGOS_DLL_SPEC Player : public Unit
             m_lastFallZ = z;
         }
         void HandleFall(MovementInfo const& movementInfo);
+
+        RedirectThreatMap* getRedirectThreatMap() { return &m_redirectMap; }
 
         void BuildTeleportAckMsg( WorldPacket *data, float x, float y, float z, float ang) const;
 
@@ -2258,6 +2298,8 @@ class MANGOS_DLL_SPEC Player : public Unit
     protected:
 
         uint32 m_contestedPvPTimer;
+
+        OutdoorPvP* m_OutdoorPvP;
 
         /*********************************************************/
         /***               BATTLEGROUND SYSTEM                 ***/
@@ -2524,6 +2566,9 @@ class MANGOS_DLL_SPEC Player : public Unit
 
         AchievementMgr m_achievementMgr;
         ReputationMgr  m_reputationMgr;
+
+        // Map used to control threat redirection effects
+        RedirectThreatMap m_redirectMap;
 };
 
 void AddItemsSetItem(Player*player,Item *item);

@@ -909,7 +909,7 @@ enum AuraState
     AURA_STATE_SWIFTMEND                    = 15,           //   T |
     AURA_STATE_DEADLY_POISON                = 16,           //   T |
     AURA_STATE_ENRAGE                       = 17,           // C   |
-    //AURA_STATE_UNKNOWN18                  = 18,           // C  t|
+    AURA_STATE_MECHANIC_BLEED               = 18,           // C  t|
     //AURA_STATE_UNKNOWN19                  = 19,           //     | not used
     //AURA_STATE_UNKNOWN20                  = 20,           //  c  | only (45317 Suicide)
     //AURA_STATE_UNKNOWN21                  = 21,           //     | not used
@@ -1940,8 +1940,12 @@ enum HolidayIds
     HOLIDAY_DARKMOON_FAIRE_ELWYNN    = 374,
     HOLIDAY_DARKMOON_FAIRE_THUNDER   = 375,
     HOLIDAY_DARKMOON_FAIRE_SHATTRATH = 376,
+    HOLIDAY_PIRATES_DAY              = 398,
     HOLIDAY_CALL_TO_ARMS_SA          = 400,
-    HOLIDAY_WOTLK_LAUNCH             = 406
+    HOLIDAY_PILGRIMS_BOUNTY          = 404,
+    HOLIDAY_WOTLK_LAUNCH             = 406,
+    HOLIDAY_DAY_OF_DEAD              = 409,
+    HOLIDAY_CALL_TO_ARMS_ISLE_OF_C   = 420
 };
 
 // values based at QuestInfo.dbc
@@ -2455,10 +2459,15 @@ enum SummonType
     SUMMON_TYPE_UNKNOWN5    = 409,
     SUMMON_TYPE_UNKNOWN2    = 427,
     SUMMON_TYPE_POSESSED2   = 428,
+    SUMMON_TYPE_WILD2       = 429,
     SUMMON_TYPE_QUEST_CRITTER = 487,
     SUMMON_TYPE_QUEST_WILD  = 587,
+    SUMMON_TYPE_TOTEM2      = 647,
+    SUMMON_TYPE_GHOUL_OF_THE_DEAD = 687,
     SUMMON_TYPE_INFERNO     = 711,
     SUMMON_TYPE_GUARDIAN2   = 713,
+    SUMMON_TYPE_GHOUL       = 829,
+    SUMMON_TYPE_SCRAPBOT    = 832,
     SUMMON_TYPE_GUARDIAN3   = 1161,
     SUMMON_TYPE_CREATURE    = 1302,
     SUMMON_TYPE_ELEMENTAL   = 1561,

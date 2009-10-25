@@ -79,14 +79,21 @@ Object::Object( ) : m_PackGUID(sizeof(uint64)+1)
 
 Object::~Object( )
 {
+    if(IsInWorld())
+    {
+        ///- Do NOT call RemoveFromWorld here, if the object is a player it will crash
+        sLog.outError("Object::~Object (GUID: %u TypeId: %u) deleted but still in world!!", GetGUIDLow(), GetTypeId());
+        ASSERT(false);
+    }
+
+    if(m_objectUpdated)
+    {
+        sLog.outError("Object::~Object (GUID: %u TypeId: %u) deleted but still have updated status!!", GetGUIDLow(), GetTypeId());
+        ASSERT(false);
+    }
+
     if(m_uint32Values)
     {
-        if(IsInWorld())
-        {
-            ///- Do NOT call RemoveFromWorld here, if the object is a player it will crash
-            sLog.outError("Object::~Object (GUID: %u TypeId: %u) deleted but still in world!!", GetGUIDLow(), GetTypeId());
-            //assert(0);
-        }
 
         //DEBUG_LOG("Object desctr 1 check (%p)",(void*)this);
         delete [] m_uint32Values;
@@ -624,7 +631,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer * data, UpdateMask *
                 if( index == UNIT_NPC_FLAGS )
                 {
                     // remove custom flag before sending
-                    uint32 appendValue = m_uint32Values[ index ] & ~UNIT_NPC_FLAG_GUARD;
+                    uint32 appendValue = m_uint32Values[ index ] & ~(UNIT_NPC_FLAG_GUARD + UNIT_NPC_FLAG_OUTDOORPVP);
 
                     if (GetTypeId() == TYPEID_UNIT && !target->canSeeSpellClickOn((Creature*)this))
                         appendValue &= ~UNIT_NPC_FLAG_SPELLCLICK;
@@ -735,10 +742,13 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer * data, UpdateMask *
 
 void Object::ClearUpdateMask(bool remove)
 {
-    for( uint16 index = 0; index < m_valuesCount; ++index )
+    if(m_uint32Values)
     {
-        if(m_uint32Values_mirror[index]!= m_uint32Values[index])
-            m_uint32Values_mirror[index] = m_uint32Values[index];
+        for( uint16 index = 0; index < m_valuesCount; ++index )
+        {
+            if(m_uint32Values_mirror[index]!= m_uint32Values[index])
+                m_uint32Values_mirror[index] = m_uint32Values[index];
+        }
     }
 
     if(m_objectUpdated)
@@ -1102,6 +1112,7 @@ WorldObject::WorldObject()
 
 void WorldObject::CleanupsBeforeDelete()
 {
+    RemoveFromWorld();
 }
 
 void WorldObject::_Create( uint32 guidlow, HighGuid guidhigh, uint32 phaseMask )
@@ -1406,7 +1417,7 @@ void WorldObject::UpdateGroundPositionZ(float x, float y, float &z) const
 {
     float new_z = GetBaseMap()->GetHeight(x,y,z,true);
     if(new_z > INVALID_HEIGHT)
-        z = new_z+ 0.05f;                                   // just to be sure that we are not a few pixel under the surface
+        z = new_z; //+ 0.05f;                                   // just to be sure that we are not a few pixel under the surface
 }
 
 bool WorldObject::IsPositionValid() const
@@ -1791,6 +1802,11 @@ void WorldObject::GetNearPoint(WorldObject const* searcher, float &x, float &y, 
     // set first used pos in lists
     selector.InitializeAngle();
 
+    // Debugging LoS problem when angle == 0.00, set some vars
+    bool localDebug = false;
+    uint32 localCounter = 0;
+    uint32 localCounter2 = 0;
+
     // select in positions after current nodes (selection one by one)
     while(selector.NextAngle(angle))                        // angle for free pos
     {
@@ -1800,53 +1816,108 @@ void WorldObject::GetNearPoint(WorldObject const* searcher, float &x, float &y, 
 
         if(IsWithinLOS(x,y,z))
             return;
+
+        // Start outputting debug when angle == 0.00
+        if(!angle && !localCounter)
+        {
+                sLog.outError("WorldObject::GetNearPoint: DEBUG START (angle = %f, map_id = %u, x = %f, y = %f, z = %f)", angle, GetMapId(), x, y, z);
+                localDebug = true;
+        }
+
+        if(++localCounter > 100)
+        {
+            sLog.outError("WorldObject::GetNearPoint: FIRST WHILE LOOP more then 100 iterations, BREAK (angle = %f, map_id = %u, x = %f, y = %f, z = %f)", angle, GetMapId(), x, y, z);
+            break;
+        }
     }
 
     // BAD NEWS: not free pos (or used or have LOS problems)
     // Attempt find _used_ pos without LOS problem
 
+    if(localDebug)
+        sLog.outError("WorldObject::GetNearPoint: CHECKPOINT 1 (angle = %f, map_id = %u, x = %f, y = %f, z = %f)", angle, GetMapId(), x, y, z);
+
     if(!first_los_conflict)
     {
+        if(localDebug)
+            sLog.outError("WorldObject::GetNearPoint: CHECKPOINT 1A (angle = %f, map_id = %u, x = %f, y = %f, z = %f)", angle, GetMapId(), x, y, z);
+
         x = first_x;
         y = first_y;
 
         UpdateGroundPositionZ(x,y,z);                       // update to LOS height if available
+
+        if(localDebug) sLog.outError("WorldObject::GetNearPoint: RETURN POINT 1 (angle = %f, map_id = %u, x = %f, y = %f, z = %f)", angle, GetMapId(), x, y, z);
         return;
     }
+
+    if(localDebug)
+        sLog.outError("WorldObject::GetNearPoint: CHECKPOINT 2 (angle = %f, map_id = %u, x = %f, y = %f, z = %f)", angle, GetMapId(), x, y, z);
 
     // special case when one from list empty and then empty side preferred
     if( selector.IsNonBalanced() )
     {
+        if(localDebug)
+            sLog.outError("WorldObject::GetNearPoint: CHECKPOINT 2A (angle = %f, map_id = %u, x = %f, y = %f, z = %f)", angle, GetMapId(), x, y, z);
+
         if(!selector.FirstAngle(angle))                     // _used_ pos
         {
+            if(localDebug)
+                sLog.outError("WorldObject::GetNearPoint: CHECKPOINT 2B (angle = %f, map_id = %u, x = %f, y = %f, z = %f)", angle, GetMapId(), x, y, z);
+
             GetNearPoint2D(x,y,distance2d,absAngle+angle);
             z = GetPositionZ();
             UpdateGroundPositionZ(x,y,z);                   // update to LOS height if available
 
             if(IsWithinLOS(x,y,z))
+            {
+                if(localDebug) sLog.outError("WorldObject::GetNearPoint: RETURN POINT 2 (angle = %f, map_id = %u, x = %f, y = %f, z = %f)", angle, GetMapId(), x, y, z);
                 return;
+            }
         }
     }
+
+    if(localDebug)
+        sLog.outError("WorldObject::GetNearPoint: CHECKPOINT 3 (angle = %f, map_id = %u, x = %f, y = %f, z = %f)", angle, GetMapId(), x, y, z);
 
     // set first used pos in lists
     selector.InitializeAngle();
 
+    if(localDebug)
+        sLog.outError("WorldObject::GetNearPoint: CHECKPOINT 4 (angle = %f, map_id = %u, x = %f, y = %f, z = %f)", angle, GetMapId(), x, y, z);
+
     // select in positions after current nodes (selection one by one)
     while(selector.NextUsedAngle(angle))                    // angle for used pos but maybe without LOS problem
     {
+        if(localDebug)
+            sLog.outError("WorldObject::GetNearPoint: CHECKPOINT 4A (angle = %f, map_id = %u, x = %f, y = %f, z = %f)", angle, GetMapId(), x, y, z);
+
         GetNearPoint2D(x,y,distance2d,absAngle+angle);
         z = GetPositionZ();
         UpdateGroundPositionZ(x,y,z);                       // update to LOS height if available
 
         if(IsWithinLOS(x,y,z))
+        {
+            if(localDebug) sLog.outError("WorldObject::GetNearPoint: RETURN POINT 3 (angle = %f, map_id = %u, x = %f, y = %f, z = %f)", angle, GetMapId(), x, y, z);
             return;
+        }
+
+        if(++localCounter2 > 100)
+        {
+            sLog.outError("WorldObject::GetNearPoint: SECOND WHILE LOOP more then 100 iterations, BREAK (angle = %f, map_id = %u, x = %f, y = %f, z = %f)", angle, GetMapId(), x, y, z);
+            break;
+        }
     }
+
+    if(localDebug)
+        sLog.outError("WorldObject::GetNearPoint: CHECKPOINT 5 (angle = %f, map_id = %u, x = %f, y = %f, z = %f)", angle, GetMapId(), x, y, z);
 
     // BAD BAD NEWS: all found pos (free and used) have LOS problem :(
     x = first_x;
     y = first_y;
 
     UpdateGroundPositionZ(x,y,z);                           // update to LOS height if available
+    if(localDebug) sLog.outError("WorldObject::GetNearPoint: RETURN POINT 4 (angle = %f, map_id = %u, x = %f, y = %f, z = %f)", angle, GetMapId(), x, y, z);
 }
 
 void WorldObject::SetPhaseMask(uint32 newPhaseMask, bool update)
