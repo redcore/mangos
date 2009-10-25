@@ -35,6 +35,7 @@
 #include "Group.h"
 #include "MapRefManager.h"
 #include "DBCEnums.h"
+#include "OutdoorPvPMgr.h"
 
 #include "MapInstanced.h"
 #include "InstanceSaveMgr.h"
@@ -61,6 +62,12 @@ Map::~Map()
 
     if(!m_scriptSchedule.empty())
         sWorld.DecreaseScheduledScriptCount(m_scriptSchedule.size());
+
+    // removes the mappointer from an outdoorpvp-class
+    std::map<uint32, OutdoorPvP*>::iterator itr = m_OutdoorPvP.begin();
+    for(; itr != m_OutdoorPvP.end(); ++itr)
+        itr->second->SetMap(NULL);
+
 }
 
 bool Map::ExistMap(uint32 mapid,int gx,int gy)
@@ -218,6 +225,8 @@ Map::Map(uint32 id, time_t expiry, uint32 InstanceId, uint8 SpawnMode, Map* _par
 
     //lets initialize visibility distance for map
     Map::InitVisibilityDistance();
+    // adds the mappointer to an outdoorpvp-class
+    sOutdoorPvPMgr.NotifyMapAdded(this);
 }
 
 void Map::InitVisibilityDistance()
@@ -700,6 +709,14 @@ void Map::Update(const uint32 &t_diff)
 
     // Send world objects and item update field changes
     SendObjectUpdates();
+
+    // Update OutdoorPvP.
+    if (t_diff < OUTDOORPVP_OBJECTIVE_UPDATE_INTERVAL)
+    {
+        std::map<uint32, OutdoorPvP*>::iterator itr = m_OutdoorPvP.begin();
+        for(; itr != m_OutdoorPvP.end(); ++itr)
+            itr->second->Update(t_diff);
+    }
 
     // Don't unload grids if it's battleground, since we may have manually added GOs,creatures, those doesn't load from DB at grid re-load !
     // This isn't really bother us, since as soon as we have instanced BG-s, the whole map unloads as the BG gets ended
@@ -2918,8 +2935,8 @@ void Map::ScriptsProcess()
                 }
                 if(step.script->datalong <= OBJECT_FIELD_ENTRY || step.script->datalong >= source->GetValuesCount())
                 {
-                    sLog.outError("SCRIPT_COMMAND_FIELD_SET call for wrong field %u (max count: %u) in object (TypeId: %u).",
-                        step.script->datalong,source->GetValuesCount(),source->GetTypeId());
+                    sLog.outError("SCRIPT_COMMAND_FIELD_SET call for wrong field %u (max count: %u) in object (Entry: %u)(TypeId: %u).",
+                        step.script->datalong,source->GetValuesCount(),source->GetEntry(),source->GetTypeId());
                     break;
                 }
 

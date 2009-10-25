@@ -42,6 +42,7 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
+#include "OutdoorPvPMgr.h"
 
 // apply implementation of the singletons
 #include "Policies/SingletonImp.h"
@@ -126,6 +127,8 @@ m_creatureInfo(NULL), m_isActiveObject(false), m_monsterMoveFlags(MONSTER_MOVE_W
     m_GlobalCooldown = 0;
 
     m_monsterMoveFlags = MONSTER_MOVE_WALK;
+
+    ResetObtainedDamage();
 }
 
 Creature::~Creature()
@@ -158,7 +161,7 @@ void Creature::RemoveFromWorld()
 
 void Creature::RemoveCorpse()
 {
-    if ((getDeathState() != CORPSE && !m_isDeadByDefault) || (getDeathState() != ALIVE && m_isDeadByDefault))
+    if (((getDeathState() != CORPSE && getDeathState() != GHOULED) && !m_isDeadByDefault) || (getDeathState() != ALIVE && m_isDeadByDefault))
         return;
 
     m_deathTimer = 0;
@@ -312,6 +315,9 @@ bool Creature::UpdateEntry(uint32 Entry, uint32 team, const CreatureData *data )
                 SetPvP(true);
     }
 
+    if (GetCreatureInfo()->unit_flags & UNIT_FLAG_PVP || GetCreatureInfo()->unit_flags & UNIT_FLAG_PVP_ATTACKABLE)
+        SetPvP(true);
+
     for(int i=0; i < CREATURE_MAX_SPELLS; ++i)
         m_spells[i] = GetCreatureInfo()->spells[i];
 
@@ -376,6 +382,7 @@ void Creature::Update(uint32 diff)
             }
             break;
         }
+        case GHOULED:
         case CORPSE:
         {
             if (m_isDeadByDefault)
@@ -820,6 +827,10 @@ void Creature::prepareGossipMenu( Player *pPlayer,uint32 gossipid )
                     case GOSSIP_OPTION_TABARDDESIGNER:
                     case GOSSIP_OPTION_AUCTIONEER:
                         break;                              // no checks
+                    case GOSSIP_OPTION_OUTDOORPVP:
+                        if (!pPlayer->Script_CanTalkTo(this, (*gso)))
+                             cantalking = false;
+                         break;
                     default:
                         sLog.outErrorDb("Creature %u (entry: %u) have unknown gossip option %u",GetDBTableGUIDLow(),GetEntry(),gso->Action);
                         break;
@@ -911,6 +922,9 @@ void Creature::OnGossipSelect(Player* player, uint32 option)
             player->PlayerTalkClass->SendTalking(textid);
             break;
         }
+        case GOSSIP_OPTION_OUTDOORPVP:
+            player->Script_HandleGossipOption(GetGUID(), option);
+            break;
         case GOSSIP_OPTION_SPIRITHEALER:
             if (player->isDead())
                 CastSpell(this,17251,true,NULL,NULL,player->GetGUID());
@@ -1550,6 +1564,7 @@ void Creature::setDeathState(DeathState s)
     {
         SetHealth(GetMaxHealth());
         SetLootRecipient(NULL);
+        ResetObtainedDamage();
         CreatureInfo const *cinfo = GetCreatureInfo();
         SetUInt32Value(UNIT_DYNAMIC_FLAGS, 0);
         RemoveFlag (UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE);
@@ -2070,6 +2085,10 @@ void Creature::AddCreatureSpellCooldown(uint32 spellid)
         return;
 
     uint32 cooldown = GetSpellRecoveryTime(spellInfo);
+    // apply spellmod (in case creature is pet)
+    if(Player* modOwner = GetSpellModOwner())
+        modOwner->ApplySpellMod(spellid, SPELLMOD_COOLDOWN, cooldown);
+
     if(cooldown)
         _AddCreatureSpellCooldown(spellid, time(NULL) + cooldown/IN_MILISECONDS);
 
