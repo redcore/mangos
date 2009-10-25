@@ -525,5 +525,10 @@ class MANGOS_DLL_SPEC WorldObject : public Object
         float m_positionY;
         float m_positionZ;
         float m_orientation;
+
+//FROM Trinity
+	public:
+	    Creature*   FindNearestCreature(uint32 entry, float range, bool alive = true);
+	    template<class NOTIFIER> void VisitNearbyObject(const float &radius, NOTIFIER &notifier) const { GetMap()->VisitAll(GetPositionX(), GetPositionY(), radius, notifier); }
 };
 #endif
