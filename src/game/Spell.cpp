@@ -491,7 +491,7 @@ void Spell::FillCustomTargetMap(uint32 i, UnitList& TagUnitMap)
     // Resulting effect depends on spell that we want to cast
     switch (m_spellInfo->Id)
     {
-        case 48743: // Death Pact
+        /*case 48743: // Death Pact
         {
             Unit* unit_to_add = NULL;
             if (Player* modOwner = m_caster->GetSpellModOwner())
@@ -526,7 +526,7 @@ void Spell::FillCustomTargetMap(uint32 i, UnitList& TagUnitMap)
                 }
             }
             break;
-        }
+        }*/
         case 46584: // Raise Dead
         {
             WorldObject* result = FindCorpseUsing <MaNGOS::RaiseDeadObjectCheck>  ();
@@ -2388,7 +2388,7 @@ void Spell::SetTargetMap(uint32 effIndex,uint32 targetMode,UnitList& TagUnitMap)
                         TagUnitMap.push_back(m_targets.getUnitTarget());
                     if (m_targets.getCorpseTargetGUID())
                     {
-                        Corpse *corpse = ObjectAccessor::GetCorpse(*m_caster, m_targets.getCorpseTargetGUID());
+                        Corpse *corpse = m_caster->GetMap()->GetCorpse(m_targets.getCorpseTargetGUID());
                         if(corpse)
                         {
                             Player* owner = ObjectAccessor::FindPlayer(corpse->GetOwnerGUID());
@@ -2453,7 +2453,7 @@ void Spell::SetTargetMap(uint32 effIndex,uint32 targetMode,UnitList& TagUnitMap)
                         TagUnitMap.push_back(m_targets.getUnitTarget());
                     else if (m_targets.getCorpseTargetGUID())
                     {
-                        if (Corpse *corpse = ObjectAccessor::GetCorpse(*m_caster,m_targets.getCorpseTargetGUID()))
+                        if (Corpse *corpse = m_caster->GetMap()->GetCorpse(m_targets.getCorpseTargetGUID()))
                             if (Player* owner = ObjectAccessor::FindPlayer(corpse->GetOwnerGUID()))
                                 TagUnitMap.push_back(owner);
                     }
@@ -4563,12 +4563,15 @@ SpellCastResult Spell::CheckCast(bool strict)
             }
             case SPELL_EFFECT_TAMECREATURE:
             {
-                if (m_caster->GetTypeId() != TYPEID_PLAYER ||
+                // Spell can be triggered, we need to check original caster prior to caster
+                Unit* caster = m_originalCaster ? m_originalCaster : m_caster;
+
+                if (caster->GetTypeId() != TYPEID_PLAYER ||
                     !m_targets.getUnitTarget() ||
                     m_targets.getUnitTarget()->GetTypeId() == TYPEID_PLAYER)
                     return SPELL_FAILED_BAD_TARGETS;
 
-                Player* plrCaster = (Player*)m_caster;
+                Player* plrCaster = (Player*)caster;
 
                 if(plrCaster->getClass() != CLASS_HUNTER)
                 {
@@ -6111,7 +6114,7 @@ bool Spell::CheckTarget( Unit* target, uint32 eff )
                 if(!m_targets.getCorpseTargetGUID())
                     return false;
 
-                Corpse *corpse = ObjectAccessor::GetCorpse(*m_caster, m_targets.getCorpseTargetGUID());
+                Corpse *corpse = m_caster->GetMap()->GetCorpse(m_targets.getCorpseTargetGUID());
                 if(!corpse)
                     return false;
 
