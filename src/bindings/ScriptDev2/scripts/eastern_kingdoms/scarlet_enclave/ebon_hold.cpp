@@ -204,7 +204,7 @@ struct MANGOS_DLL_DECL npc_a_special_surpriseAI : public ScriptedAI
         {
             if (m_uiExecuteSpeech_Timer < uiDiff)
             {
-                Player* pPlayer = (Player*)(Creature*)Unit::GetUnit(*m_creature, m_uiPlayerGUID);
+                Player* pPlayer = (Player*)Unit::GetUnit(*m_creature, m_uiPlayerGUID);
 
                 if (!pPlayer)
                 {
@@ -594,7 +594,7 @@ struct MANGOS_DLL_DECL npc_death_knight_initiateAI : public ScriptedAI
         {
             uiDamage = 0;
 
-            if (Unit* pUnit = (Creature*)Unit::GetUnit(*m_creature, m_uiDuelerGUID))
+            if (Unit* pUnit = Unit::GetUnit(*m_creature, m_uiDuelerGUID))
                 m_creature->CastSpell(pUnit, SPELL_DUEL_VICTORY, true);
 
             //possibly not evade, but instead have end sequenze
@@ -612,7 +612,7 @@ struct MANGOS_DLL_DECL npc_death_knight_initiateAI : public ScriptedAI
                 {
                     m_creature->setFaction(FACTION_HOSTILE);
 
-                    if (Unit* pUnit = (Creature*)Unit::GetUnit(*m_creature, m_uiDuelerGUID))
+                    if (Unit* pUnit = Unit::GetUnit(*m_creature, m_uiDuelerGUID))
                         AttackStart(pUnit);
                 }
                 else
@@ -740,7 +740,7 @@ struct MANGOS_DLL_DECL npc_unworthy_initiate_anchorAI : public ScriptedAI
 
     void NotifyMe(Unit* pSource)
     {
-        Creature* pInitiate = (Creature*)(Creature*)Unit::GetUnit(*m_creature, m_uiMyInitiate);
+        Creature* pInitiate = (Creature*)Unit::GetUnit(*m_creature, m_uiMyInitiate);
 
         if (pInitiate && pSource)
         {
