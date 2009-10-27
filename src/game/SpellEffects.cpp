@@ -3584,15 +3584,7 @@ void Spell::EffectSummonType(uint32 i)
         case SUMMON_TYPE_GUARDIAN:
         case SUMMON_TYPE_POSESSED:
         case SUMMON_TYPE_POSESSED2:
-			{
-			 EffectSummonPosessed(i);
-             break;
-			}
         case SUMMON_TYPE_FORCE_OF_NATURE:
-			{
-			 EffectSummonGuardian(i);
-             break;
-			}
         case SUMMON_TYPE_GUARDIAN2:
         case SUMMON_TYPE_GUARDIAN3:
         case SUMMON_TYPE_GHOUL:
@@ -5620,34 +5612,6 @@ void Spell::EffectScriptEffect(uint32 effIndex)
                         if((*itr).second->GetId() == 54428)
                            (*itr).second->RefreshAura();
                     }
-                    return;
-                }
-                case 52694:                                     // Recall Eye of Acherus
-                {
-                    if(!m_caster || m_caster->GetTypeId() != TYPEID_UNIT)
-                        return;
-                    
-                    Unit *target = m_caster->GetCharmer();
-                    
-                    if(!target || target->GetTypeId() != TYPEID_PLAYER)
-                        return;
-
-                    m_caster->SetCharmerGUID(0);                         
-                    target->RemoveAurasDueToSpell(51852);       // Remove The Eye of Acherus
-                    
-                    target->SetCharm(NULL);
-
-                    ((Player*)target)->SetFarSightGUID(0);
-                    ((Player*)target)->SetClientControl(m_caster,0);
-
-                    WorldPacket data(SMSG_PET_SPELLS, 8+4);
-                    data << uint64(0);
-                    data << uint32(0);
-                    ((Player*)target)->GetSession()->SendPacket(&data);
-
-                    m_caster->CleanupsBeforeDelete();
-                    m_caster->AddObjectToRemoveList();
-
                     return;
                 }
             }
