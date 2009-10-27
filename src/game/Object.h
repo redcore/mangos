@@ -40,6 +40,7 @@
 #define DEFAULT_WORLD_OBJECT_SIZE   0.388999998569489f      // player size, also currently used (correctly?) for any non Unit world objects
 #define MAX_STEALTH_DETECT_RANGE    45.0f
 
+
 enum TypeMask
 {
     TYPEMASK_OBJECT         = 0x0001,
@@ -353,7 +354,9 @@ class MANGOS_DLL_SPEC WorldObject : public Object
     friend struct WorldObjectChangeAccumulator;
 
     public:
-        virtual ~WorldObject ( ) {}
+		
+        
+		virtual ~WorldObject ( ) {}
 
         virtual void Update ( uint32 /*time_diff*/ ) { }
 
@@ -490,16 +493,20 @@ class MANGOS_DLL_SPEC WorldObject : public Object
 
         // low level function for visibility change code, must be define in all main world object subclasses
         virtual bool isVisibleForInState(Player const* u, WorldObject const* viewPoint, bool inVisibleList) const = 0;
-
-        void SetMap(Map * map);
+		
+		void SetMap(Map * map);
         Map * GetMap() const { ASSERT(m_currMap); return m_currMap; }
         //used to check all object's GetMap() calls when object is not in world!
         void ResetMap() { m_currMap = NULL; }
 
         //this function should be removed in nearest time...
         Map const* GetBaseMap() const;
+		
+		Creature* FindNearestCreature(uint32 entry, float range, bool alive = true);
+		template<class NOTIFIER> void VisitNearbyObject(const float &radius, NOTIFIER &notifier) const  {GetMap()->VisitAll(GetPositionX(), GetPositionY(), radius, notifier);}
+		
 
-        void AddToClientUpdateList();
+		void AddToClientUpdateList();
         void RemoveFromClientUpdateList();
         void BuildUpdateData(UpdateDataMapType &);
 
@@ -529,9 +536,6 @@ class MANGOS_DLL_SPEC WorldObject : public Object
         float m_positionZ;
         float m_orientation;
 
-//FROM Trinity
-	public:
-	    Creature*   FindNearestCreature(uint32 entry, float range, bool alive = true);
-	    template<class NOTIFIER> void VisitNearbyObject(const float &radius, NOTIFIER &notifier) const { GetMap()->VisitAll(GetPositionX(), GetPositionY(), radius, notifier); }
 };
+
 #endif

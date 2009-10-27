@@ -1707,6 +1707,16 @@ Vehicle* WorldObject::SummonVehicle(uint32 id, float x, float y, float z, float 
     return v;
 }
 
+//FROM Trinity
+Creature* WorldObject::FindNearestCreature(uint32 entry, float range, bool alive)
+{
+    Creature *creature = NULL;
+	MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck checker(*this, entry, alive, range);
+    MaNGOS::CreatureLastSearcher<MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck> searcher(this, creature, checker);
+    VisitNearbyObject(range, searcher);
+    return creature;
+}
+
 namespace MaNGOS
 {
     class NearUsedPosDo
@@ -2048,14 +2058,4 @@ void WorldObject::BuildUpdateData( UpdateDataMapType & update_players)
     cell_lock->Visit(cell_lock, player_notifier, *aMap, *this, aMap->GetVisibilityDistance());
 
     ClearUpdateMask(false);
-}
-
-//FROM Trinity
-Creature* WorldObject::FindNearestCreature(uint32 entry, float range, bool alive)
-{
-    Creature *creature = NULL;
-	MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck checker(*this, entry, alive, range);
-    MaNGOS::CreatureLastSearcher<MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck> searcher(this, creature, checker);
-    VisitNearbyObject(range, searcher);
-    return creature;
 }
