@@ -662,23 +662,4 @@ Map::Visit(const CellLock<LOCK_TYPE> &cell, TypeContainerVisitor<T, CONTAINER> &
         getNGrid(x, y)->Visit(cell_x, cell_y, visitor);
     }
 }
-
-//FROM Trinity
-template<class NOTIFIER>
-inline void
-Map::VisitAll(const float &x, const float &y, float radius, NOTIFIER &notifier)
-{
-    float x_off, y_off;
-    CellPair p(MaNGOS::ComputeCellPair(x, y, x_off, y_off));
-    Cell cell(p);
-    cell.data.Part.reserved = ALL_DISTRICT;
-    cell.SetNoCreate();
-    CellLock<GridReadGuard> cell_lock(cell, p);
-
-    TypeContainerVisitor<NOTIFIER, WorldTypeMapContainer> world_object_notifier(notifier);
-    cell_lock->Visit(cell_lock, world_object_notifier, *this, radius, x_off, y_off);
-    TypeContainerVisitor<NOTIFIER, GridTypeMapContainer >  grid_object_notifier(notifier);
-    cell_lock->Visit(cell_lock, grid_object_notifier, *this, radius, x_off, y_off);
-}
-
 #endif

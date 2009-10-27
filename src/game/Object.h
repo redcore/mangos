@@ -501,11 +501,7 @@ class MANGOS_DLL_SPEC WorldObject : public Object
 
         //this function should be removed in nearest time...
         Map const* GetBaseMap() const;
-		
-		Creature* FindNearestCreature(uint32 entry, float range, bool alive = true);
-		template<class NOTIFIER> void VisitNearbyObject(const float &radius, NOTIFIER &notifier) const  {GetMap()->VisitAll(GetPositionX(), GetPositionY(), radius, notifier);}
-		
-
+	
 		void AddToClientUpdateList();
         void RemoveFromClientUpdateList();
         void BuildUpdateData(UpdateDataMapType &);
