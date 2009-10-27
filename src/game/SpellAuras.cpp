@@ -38,8 +38,6 @@
 #include "Creature.h"
 #include "Formulas.h"
 #include "BattleGround.h"
-#include "OutdoorPvP.h"
-#include "OutdoorPvPMgr.h"
 #include "CreatureAI.h"
 #include "ScriptCalls.h"
 #include "Util.h"
@@ -1156,89 +1154,93 @@ bool Aura::_RemoveAura()
     SetAura(true);
     SetAuraFlags(AFLAG_NONE);
     SetAuraLevel(0);
-    SendAuraUpdate(true);
 
-    // update for out of range group members
-    m_target->UpdateAuraForGroup(slot);
-
-    //*****************************************************
-    // Update target aura state flag (at last aura remove)
-    //*****************************************************
-    // Enrage aura state
-    if(m_spellProto->Dispel == DISPEL_ENRAGE)
-        m_target->ModifyAuraState(AURA_STATE_ENRAGE, false);
-
-    // Mechanic bleed aura state
-    if(GetAllSpellMechanicMask(m_spellProto) & (1 << (MECHANIC_BLEED-1)))
-        m_target->ModifyAuraState(AURA_STATE_MECHANIC_BLEED, false);
-
-    uint32 removeState = 0;
-    uint64 removeFamilyFlag = m_spellProto->SpellFamilyFlags;
-    uint32 removeFamilyFlag2 = m_spellProto->SpellFamilyFlags2;
-    switch(m_spellProto->SpellFamilyName)
+    if (m_removeMode != AURA_REMOVE_BY_DELETE)
     {
-    case SPELLFAMILY_PALADIN:
-        if (IsSealSpell(m_spellProto))
-            removeState = AURA_STATE_JUDGEMENT;     // Update Seals information
-        break;
-    case SPELLFAMILY_WARLOCK:
-        // Conflagrate aura state on Immolate and Shadowflame,
-        if ((m_spellProto->SpellFamilyFlags & UI64LIT(0x0000000000000004)) ||
-            (m_spellProto->SpellFamilyFlags2 & 0x00000002))
-        {
-            removeFamilyFlag = UI64LIT(0x0000000000000004);
-            removeFamilyFlag2 = 0x00000002;
-            removeState = AURA_STATE_CONFLAGRATE;
-        }
-        break;
-    case SPELLFAMILY_DRUID:
-        if(m_spellProto->SpellFamilyFlags & UI64LIT(0x0000000000000400))
-            removeState = AURA_STATE_FAERIE_FIRE;   // Faerie Fire (druid versions)
-        else if(m_spellProto->SpellFamilyFlags & UI64LIT(0x50))
-        {
-            removeFamilyFlag = 0x50;
-            removeState = AURA_STATE_SWIFTMEND;     // Swiftmend aura state
-        }
-        break;
-    case SPELLFAMILY_WARRIOR:
-        if(m_spellProto->SpellFamilyFlags & UI64LIT(0x0004000000000000))
-            removeState = AURA_STATE_WARRIOR_VICTORY_RUSH; // Victorious
-        break;
-    case SPELLFAMILY_ROGUE:
-        if(m_spellProto->SpellFamilyFlags & UI64LIT(0x10000))
-            removeState = AURA_STATE_DEADLY_POISON; // Deadly poison aura state
-        break;
-    case SPELLFAMILY_HUNTER:
-        if(m_spellProto->SpellFamilyFlags & UI64LIT(0x1000000000000000))
-            removeState = AURA_STATE_FAERIE_FIRE;   // Sting (hunter versions)
+        SendAuraUpdate(true);
 
-    }
-    // Remove state (but need check other auras for it)
-    if (removeState)
-    {
-        bool found = false;
-        Unit::AuraMap& Auras = m_target->GetAuras();
-        for(Unit::AuraMap::iterator i = Auras.begin(); i != Auras.end(); ++i)
+        // update for out of range group members
+        m_target->UpdateAuraForGroup(slot);
+
+        //*****************************************************
+        // Update target aura state flag (at last aura remove)
+        //*****************************************************
+        // Enrage aura state
+        if(m_spellProto->Dispel == DISPEL_ENRAGE)
+            m_target->ModifyAuraState(AURA_STATE_ENRAGE, false);
+
+        // Mechanic bleed aura state
+        if(GetAllSpellMechanicMask(m_spellProto) & (1 << (MECHANIC_BLEED-1)))
+            m_target->ModifyAuraState(AURA_STATE_MECHANIC_BLEED, false);
+
+        uint32 removeState = 0;
+        uint64 removeFamilyFlag = m_spellProto->SpellFamilyFlags;
+        uint32 removeFamilyFlag2 = m_spellProto->SpellFamilyFlags2;
+        switch(m_spellProto->SpellFamilyName)
         {
-            SpellEntry const *auraSpellInfo = (*i).second->GetSpellProto();
-            if(auraSpellInfo->SpellFamilyName  == m_spellProto->SpellFamilyName &&
-                (auraSpellInfo->SpellFamilyFlags & removeFamilyFlag || auraSpellInfo->SpellFamilyFlags2 & removeFamilyFlag2))
-            {
-                found = true;
+            case SPELLFAMILY_PALADIN:
+                if (IsSealSpell(m_spellProto))
+                    removeState = AURA_STATE_JUDGEMENT;     // Update Seals information
                 break;
-            }
+            case SPELLFAMILY_WARLOCK:
+                // Conflagrate aura state on Immolate and Shadowflame,
+                if ((m_spellProto->SpellFamilyFlags & UI64LIT(0x0000000000000004)) ||
+                    (m_spellProto->SpellFamilyFlags2 & 0x00000002))
+                {
+                    removeFamilyFlag = UI64LIT(0x0000000000000004);
+                    removeFamilyFlag2 = 0x00000002;
+                    removeState = AURA_STATE_CONFLAGRATE;
+                }
+                break;
+            case SPELLFAMILY_DRUID:
+                if(m_spellProto->SpellFamilyFlags & UI64LIT(0x0000000000000400))
+                    removeState = AURA_STATE_FAERIE_FIRE;   // Faerie Fire (druid versions)
+                else if(m_spellProto->SpellFamilyFlags & UI64LIT(0x50))
+                {
+                    removeFamilyFlag = 0x50;
+                    removeState = AURA_STATE_SWIFTMEND;     // Swiftmend aura state
+                }
+                break;
+            case SPELLFAMILY_WARRIOR:
+                if(m_spellProto->SpellFamilyFlags & UI64LIT(0x0004000000000000))
+                    removeState = AURA_STATE_WARRIOR_VICTORY_RUSH; // Victorious
+                break;
+            case SPELLFAMILY_ROGUE:
+                if(m_spellProto->SpellFamilyFlags & UI64LIT(0x10000))
+                    removeState = AURA_STATE_DEADLY_POISON; // Deadly poison aura state
+                break;
+            case SPELLFAMILY_HUNTER:
+                if(m_spellProto->SpellFamilyFlags & UI64LIT(0x1000000000000000))
+                    removeState = AURA_STATE_FAERIE_FIRE;   // Sting (hunter versions)
         }
-        // this has been last aura
-        if(!found)
-            m_target->ModifyAuraState(AuraState(removeState), false);
-    }
 
-    // reset cooldown state for spells
-    if(caster && caster->GetTypeId() == TYPEID_PLAYER)
-    {
-        if ( GetSpellProto()->Attributes & SPELL_ATTR_DISABLED_WHILE_ACTIVE )
-            // note: item based cooldowns and cooldown spell mods with charges ignored (unknown existed cases)
-            ((Player*)caster)->SendCooldownEvent(GetSpellProto());
+        // Remove state (but need check other auras for it)
+        if (removeState)
+        {
+            bool found = false;
+            Unit::AuraMap& Auras = m_target->GetAuras();
+            for(Unit::AuraMap::iterator i = Auras.begin(); i != Auras.end(); ++i)
+            {
+                SpellEntry const *auraSpellInfo = (*i).second->GetSpellProto();
+                if(auraSpellInfo->SpellFamilyName  == m_spellProto->SpellFamilyName &&
+                    (auraSpellInfo->SpellFamilyFlags & removeFamilyFlag || auraSpellInfo->SpellFamilyFlags2 & removeFamilyFlag2))
+                {
+                    found = true;
+                    break;
+                }
+            }
+            // this has been last aura
+            if(!found)
+                m_target->ModifyAuraState(AuraState(removeState), false);
+        }
+
+        // reset cooldown state for spells
+        if(caster && caster->GetTypeId() == TYPEID_PLAYER)
+        {
+            if ( GetSpellProto()->Attributes & SPELL_ATTR_DISABLED_WHILE_ACTIVE )
+                // note: item based cooldowns and cooldown spell mods with charges ignored (unknown existed cases)
+                ((Player*)caster)->SendCooldownEvent(GetSpellProto());
+        }
     }
 
     return true;
@@ -4055,13 +4057,6 @@ void Aura::HandleModStealth(bool apply, bool Real)
                 m_target->SetVisibility(VISIBILITY_GROUP_STEALTH);
             }
 
-            // remove player from the objective's active player count at stealth
-            if (m_target->GetTypeId() == TYPEID_PLAYER)
-            {
-                if (OutdoorPvP* pvp = ((Player*)m_target)->GetOutdoorPvP())
-                    pvp->HandlePlayerActivityChanged((Player*)m_target);
-            }
-
             // apply full stealth period bonuses only at first stealth aura in stack
             if(m_target->GetAurasByType(SPELL_AURA_MOD_STEALTH).size()<=1)
             {
@@ -4106,12 +4101,6 @@ void Aura::HandleModStealth(bool apply, bool Real)
                 }
                 else
                     m_target->SetVisibility(VISIBILITY_ON);
-
-                if (m_target->GetTypeId() == TYPEID_PLAYER)
-                {
-                    if (OutdoorPvP* pvp = ((Player*)m_target)->GetOutdoorPvP())
-                       pvp->HandlePlayerActivityChanged((Player*)m_target);
-                }
             }
 
             // apply delayed talent bonus remover at last stealth aura remove
@@ -4141,9 +4130,6 @@ void Aura::HandleInvisibility(bool apply, bool Real)
         {
             // apply glow vision
             m_target->SetFlag(PLAYER_FIELD_BYTES2,PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
-            // remove player from the objective's active player count at invisibility
-            if(OutdoorPvP *pvp = ((Player*)m_target)->GetOutdoorPvP())
-                pvp->HandlePlayerActivityChanged((Player*)m_target);
 
         }
 
@@ -4176,11 +4162,6 @@ void Aura::HandleInvisibility(bool apply, bool Real)
                 // if have stealth aura then already have stealth visibility
                 if(!m_target->HasAuraType(SPELL_AURA_MOD_STEALTH))
                     m_target->SetVisibility(VISIBILITY_ON);
-                if(m_target->GetTypeId() == TYPEID_PLAYER)
-                {
-                    if(OutdoorPvP *pvp = ((Player*)m_target)->GetOutdoorPvP())
-                        pvp->HandlePlayerActivityChanged((Player*)m_target);
-                }
             }
         }
     }
@@ -4431,9 +4412,15 @@ void Aura::HandleAuraModIncreaseFlightSpeed(bool apply, bool Real)
     {
         WorldPacket data;
         if(apply)
+        {
+            ((Player*)m_target)->SetCanFly(true);
             data.Initialize(SMSG_MOVE_SET_CAN_FLY, 12);
+        }
         else
+        {
             data.Initialize(SMSG_MOVE_UNSET_CAN_FLY, 12);
+            ((Player*)m_target)->SetCanFly(false);
+        }
         data.append(m_target->GetPackGUID());
         data << uint32(0);                                      // unknown
         m_target->SendMessageToSet(&data, true);
@@ -4584,14 +4571,10 @@ void Aura::HandleAuraModEffectImmunity(bool apply, bool /*Real*/)
     {
         if( BattleGround *bg = ((Player*)m_target)->GetBattleGround() )
             bg->EventPlayerDroppedFlag(((Player*)m_target));
-        else if(OutdoorPvP * pvp = ((Player*)m_target)->GetOutdoorPvP())
-            ((Player*)m_target)->Script_HandleDropFlag(GetSpellProto()->Id);
     }
 
     m_target->ApplySpellImmune(GetId(), IMMUNITY_EFFECT, m_modifier.m_miscvalue, apply);
 }
-
-
 
 void Aura::HandleAuraModStateImmunity(bool apply, bool Real)
 {
@@ -6369,10 +6352,16 @@ void Aura::HandleAuraAllowFlight(bool apply, bool Real)
     // allow fly
     WorldPacket data;
     if(apply)
+    {
+        ((Player*)m_target)->SetCanFly(true);
         data.Initialize(SMSG_MOVE_SET_CAN_FLY, 12);
+    }
     else
+    {
         data.Initialize(SMSG_MOVE_UNSET_CAN_FLY, 12);
-    data.append(m_target->GetPackGUID());
+        ((Player*)m_target)->SetCanFly(false);
+    }
+		data.append(m_target->GetPackGUID());
     data << uint32(0);                                      // unk
     m_target->SendMessageToSet(&data, true);
 }
@@ -6831,6 +6820,11 @@ void Aura::PeriodicTick()
             // send critical in hit info for threat calculation
             if (isCrit)
                 cleanDamage.hitOutCome = MELEE_HIT_CRIT;
+
+            // Reduce dot damage from resilience for players.
+            // FIXME: need use SpellDamageBonus instead?
+            if (m_target->GetTypeId() == TYPEID_PLAYER)
+                pdamage-=((Player*)m_target)->GetSpellDamageReduction(pdamage);
 
             pCaster->CalcAbsorbResist(m_target, GetSpellSchoolMask(GetSpellProto()), DOT, pdamage, &absorb, &resist);
 
