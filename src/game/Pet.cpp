@@ -39,7 +39,7 @@ char const* petTypeSuffix[MAX_PET_TYPE] =
 
 Pet::Pet(PetType type) :
 Creature(), m_removed(false), m_petType(type), m_happinessTimer(7500), m_duration(0), m_resetTalentsCost(0),
-m_bonusdamage(0), m_resetTalentsTime(0), m_usedTalentCount(0), m_auraUpdateMask(0), m_loading(false),
+m_bonusdamage(0), m_resetTalentsTime(0), m_usedTalentCount(0), m_loading(false),
 m_declinedname(NULL)
 {
     m_isPet = true;
@@ -205,6 +205,11 @@ bool Pet::LoadPetFromDB( Player* owner, uint32 petentry, uint32 petnumber, bool 
 
             SetUInt32Value(UNIT_FIELD_BYTES_0, 2048);
             SetUInt32Value(UNIT_FIELD_FLAGS, UNIT_FLAG_PVP_ATTACKABLE);
+
+             // If pet is deathknight's ghoul
+            if (GetEntry() == 26125)
+                // then he must have energy bar instead of mana
+                setPowerType(POWER_ENERGY);
                                                             // this enables popup window (pet dismiss, cancel)
             break;
         case HUNTER_PET:
@@ -354,38 +359,32 @@ void Pet::SavePetToDB(PetSaveMode mode)
     if (!pOwner)
         return;
 
-    // not save pet as current if another pet temporary unsummoned
-    if (mode == PET_SAVE_AS_CURRENT && pOwner->GetTemporaryUnsummonedPetNumber() &&
-        pOwner->GetTemporaryUnsummonedPetNumber() != m_charmInfo->GetPetNumber())
-    {
-        // pet will lost anyway at restore temporary unsummoned
-        if(getPetType()==HUNTER_PET)
-            return;
-
-        // for warlock case
-        mode = PET_SAVE_NOT_IN_SLOT;
-    }
-
-    uint32 curhealth = GetHealth();
-    uint32 curmana = GetPower(POWER_MANA);
-
-    // stable and not in slot saves
-    if(mode > PET_SAVE_AS_CURRENT)
-    {
-        RemoveAllAuras();
-
-        //only alive hunter pets get auras saved, the others don't
-        if(!(getPetType() == HUNTER_PET && isAlive()))
-            m_Auras.clear();
-    }
-
-    _SaveSpells();
-    _SaveSpellCooldowns();
-    _SaveAuras();
-
     // current/stable/not_in_slot
-    if(mode >= PET_SAVE_AS_CURRENT)
+    if (mode >= PET_SAVE_AS_CURRENT)
     {
+        // not save pet as current if another pet temporary unsummoned
+        if (mode == PET_SAVE_AS_CURRENT && pOwner->GetTemporaryUnsummonedPetNumber() &&
+            pOwner->GetTemporaryUnsummonedPetNumber() != m_charmInfo->GetPetNumber())
+        {
+            // pet will lost anyway at restore temporary unsummoned
+            if(getPetType()==HUNTER_PET)
+                return;
+
+            // for warlock case
+            mode = PET_SAVE_NOT_IN_SLOT;
+        }
+
+        uint32 curhealth = GetHealth();
+        uint32 curmana = GetPower(POWER_MANA);
+
+        // stable and not in slot saves
+        if (mode != PET_SAVE_AS_CURRENT)
+            RemoveAllAuras();
+
+        _SaveSpells();
+        _SaveSpellCooldowns();
+        _SaveAuras();
+
         uint32 owner = GUID_LOPART(GetOwnerGUID());
         std::string name = m_name;
         CharacterDatabase.escape_string(name);
@@ -440,7 +439,7 @@ void Pet::SavePetToDB(PetSaveMode mode)
     // delete
     else
     {
-        RemoveAllAuras();
+        RemoveAllAuras(AURA_REMOVE_BY_DELETE);
         DeleteFromDB(m_charmInfo->GetPetNumber());
     }
 }
@@ -488,6 +487,14 @@ void Pet::Update(uint32 diff)
 {
     if(m_removed)                                           // pet already removed, just wait in remove queue, no updates
         return;
+
+    Unit* owner = GetOwner();
+    if(owner && owner->IsPvP())
+        SetPvP(true);
+    // remove arena FFA flag.
+    AreaTableEntry const* area = GetAreaEntryByAreaID(GetAreaId());
+    if(area && !(area->flags & AREA_FLAG_ARENA) && HasByteFlag(UNIT_FIELD_BYTES_2, 1, UNIT_BYTE2_FLAG_FFA_PVP))
+        RemoveByteFlag(UNIT_FIELD_BYTES_2, 1, UNIT_BYTE2_FLAG_FFA_PVP);
 
     switch( m_deathState )
     {
@@ -779,7 +786,7 @@ bool Pet::CreateBaseAtCreature(Creature* creature)
     setPowerType(POWER_FOCUS);
     SetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP, 0);
     SetUInt32Value(UNIT_FIELD_PETEXPERIENCE, 0);
-    SetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP, objmgr.GetXPForLevel(creature->getLevel())/4);
+    SetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP, objmgr.GetXPForLevel(creature->getLevel())/10);
     SetUInt32Value(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_NONE);
 
     if(CreatureFamilyEntry const* cFamily = sCreatureFamilyStore.LookupEntry(cinfo->family))
@@ -924,7 +931,7 @@ bool Pet::InitStatsForLevel(uint32 petlevel, Unit* owner)
         }
         case HUNTER_PET:
         {
-            SetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP, objmgr.GetXPForLevel(petlevel)/4);
+            SetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP, objmgr.GetXPForLevel(petlevel)/10);
             //these formula may not be correct; however, it is designed to be close to what it should be
             //this makes dps 0.5 of pets level
             SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, float(petlevel - (petlevel / 4)) );
@@ -1083,7 +1090,7 @@ void Pet::_SaveSpellCooldowns()
     // remove oudated and save active
     for(CreatureSpellCooldowns::iterator itr = m_CreatureSpellCooldowns.begin();itr != m_CreatureSpellCooldowns.end();)
     {
-        if(itr->second <= curTime)
+        if(itr->second <= curTime || getDeathState()==CORPSE)
             m_CreatureSpellCooldowns.erase(itr++);
         else
         {
@@ -1144,9 +1151,7 @@ void Pet::_SaveSpells()
 
 void Pet::_LoadAuras(uint32 timediff)
 {
-    m_Auras.clear();
-    for (int i = 0; i < TOTAL_AURAS; ++i)
-        m_modAuras[i].clear();
+    RemoveAllAuras();
 
     QueryResult *result = CharacterDatabase.PQuery("SELECT caster_guid,spell,effect_index,stackcount,amount,maxduration,remaintime,remaincharges FROM pet_aura WHERE guid = '%u'",m_charmInfo->GetPetNumber());
 
@@ -1911,13 +1916,37 @@ void Pet::CastPetAura(PetAura const* aura)
     if(!auraId)
         return;
 
-    if(auraId == 35696)                                       // Demonic Knowledge
+    switch (auraId)
     {
-        int32 basePoints = int32(aura->GetDamage() * (GetStat(STAT_STAMINA) + GetStat(STAT_INTELLECT)) / 100);
-        CastCustomSpell(this, auraId, &basePoints, NULL, NULL, true);
-    }
-    else
-        CastSpell(this, auraId, true);
+        case 35696: // Demonic Knowledge
+        {
+            int32 basePoints = int32(aura->GetDamage() * (GetStat(STAT_STAMINA) + GetStat(STAT_INTELLECT)) / 100);
+            CastCustomSpell(this, auraId, &basePoints, NULL, NULL, true);
+            break;
+        }
+        case 54566: // Ravenous Dead
+        {
+            Unit* owner = GetOwner();
+            if (owner)
+            {
+                // We must give x% bonus to base bonus from owner's stamina to ghoul stamina
+                int32 basePoints0 =
+                    int32(owner->GetStat(STAT_STAMINA)*0.3f*(aura->GetDamage()+100.0f)/100.0f
+                    - (GetStat(STAT_STAMINA)-GetCreateStat(STAT_STAMINA)));
+                // We must give x% bonus to base bonus from owner's strength to ghoul strength
+                int32 basePoints1 =
+                    int32(owner->GetStat(STAT_STRENGTH)*0.3f*(aura->GetDamage()+100.0f)/100.0f
+                    - (GetStat(STAT_STRENGTH)-GetCreateStat(STAT_STRENGTH)));
+                CastCustomSpell(this, auraId, &basePoints0, &basePoints1, NULL, true);
+            }
+            break;
+        }
+        default:
+        {
+            CastSpell(this, auraId, true);
+            break;
+        }
+     }
 }
 
 struct DoPetLearnSpell
@@ -1952,7 +1981,7 @@ void Pet::SynchronizeLevelWithOwner()
             if(getLevel() > owner->getLevel())
             {
                 GivePetLevel(owner->getLevel());
-                SetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP, objmgr.GetXPForLevel(owner->getLevel())/4);
+                SetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP, objmgr.GetXPForLevel(owner->getLevel())/10);
                 SetUInt32Value(UNIT_FIELD_PETEXPERIENCE, GetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP)-1);
             }
             break;
