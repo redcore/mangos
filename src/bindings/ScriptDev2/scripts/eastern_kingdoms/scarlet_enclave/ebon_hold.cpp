@@ -550,7 +550,10 @@ int32 m_auiRandomSay[] =
 
 struct MANGOS_DLL_DECL npc_death_knight_initiateAI : public ScriptedAI
 {
-    npc_death_knight_initiateAI(Creature* pCreature) : ScriptedAI(pCreature) { Reset(); }
+    npc_death_knight_initiateAI(Creature* pCreature) : ScriptedAI(pCreature)
+	{
+		Reset();
+	}
 
     uint64 m_uiDuelerGUID;
     uint32 m_uiDuelTimer;
@@ -645,11 +648,11 @@ bool GossipHello_npc_death_knight_initiate(Player* pPlayer, Creature* pCreature)
 
 bool GossipSelect_npc_death_knight_initiate(Player* pPlayer, Creature* pCreature, uint32 uiSender, uint32 uiAction)
 {
-    if (uiAction == GOSSIP_ACTION_INFO_DEF+1)
+    if (uiAction == GOSSIP_ACTION_INFO_DEF + 1)
     {
         pPlayer->CLOSE_GOSSIP_MENU();
 
-        if (((npc_death_knight_initiateAI*)pCreature)->m_bIsDuelInProgress)
+        if (((npc_death_knight_initiateAI*)pCreature)->m_bIsDuelInProgress == true)
             return true;
 
         pCreature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_15);
