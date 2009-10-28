@@ -598,7 +598,6 @@ void WorldSession::HandleMovementOpcodes( WorldPacket & recv_data )
         {
             GetPlayer()->m_anti_BeginFallZ=(float)(movementInfo.z);
         }
->>>>>>> insider:src/game/MovementHandler.cpp
 
         if(GetPlayer()->m_anti_NextLenCheck <= CurTime)
         {
