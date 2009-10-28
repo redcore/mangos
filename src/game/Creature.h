@@ -56,7 +56,8 @@ enum Gossip_Option
     GOSSIP_OPTION_ARMORER           = 15,                   //UNIT_NPC_FLAG_ARMORER           = 16384,
     GOSSIP_OPTION_UNLEARNTALENTS    = 16,                   //UNIT_NPC_FLAG_TRAINER (bonus option for GOSSIP_OPTION_TRAINER)
     GOSSIP_OPTION_UNLEARNPETSKILLS  = 17,                   //UNIT_NPC_FLAG_TRAINER (bonus option for GOSSIP_OPTION_TRAINER)
-    GOSSIP_OPTION_LEARNDUALSPEC     = 18                    //UNIT_NPC_FLAG_TRAINER (bonus option for GOSSIP_OPTION_TRAINER) 
+    GOSSIP_OPTION_DEPRICATED        = 18,                   //Temporary depricated as OUTDOOR patch revertion
+    GOSSIP_OPTION_LEARNDUALSPEC     = 19                    //Dual specialization
 };
 
 enum Gossip_Guard
