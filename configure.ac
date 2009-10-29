@@ -161,8 +161,8 @@ Redcore options:
   --with-redcore       Include redcore flags],
 [
     if test "$withval" = "yes" ; then
-        CFLAGS="-m64 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -O2 -pipe -msse3 -fno-strength-reduce -fno-delete-null-pointer-checks -fno-strict-aliasing -frename-registers -DREDCORE $CFLAGS"
-        CXXFLAGS="-m64 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -O2 -pipe -msse3 -fno-strength-reduce -fno-delete-null-pointer-checks -fno-strict-aliasing -frename-registers -DREDCORE $CXXFLAGS"
+        CFLAGS="-m64 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -O0 -pipe -msse3 -fno-strength-reduce -fno-delete-null-pointer-checks -fno-strict-aliasing -frename-registers -DREDCORE $CFLAGS"
+        CXXFLAGS="-m64 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -O0 -pipe -msse3 -fno-strength-reduce -fno-delete-null-pointer-checks -fno-strict-aliasing -frename-registers -DREDCORE $CXXFLAGS"
         RC_FLAGS=yes
     elif test "$withval" != "no" ; then
         AC_MSG_ERROR(Please choose yes or no)
