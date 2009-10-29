@@ -837,6 +837,7 @@ class ObjectMgr
         uint32 m_hiItemGuid;
         uint32 m_hiGoGuid;
         uint32 m_hiCorpseGuid;
+        uint32 m_hiVehicleGuid;
 
         QuestMap            mQuestTemplates;
 

@@ -132,6 +132,7 @@ ObjectMgr::ObjectMgr()
     m_hiItemGuid        = 1;
     m_hiGoGuid          = 1;
     m_hiCorpseGuid      = 1;
+    m_hiVehicleGuid     = 1;
     m_hiPetNumber       = 1;
     m_ItemTextId        = 1;
     m_mailid            = 1;
@@ -5599,6 +5600,7 @@ void ObjectMgr::SetHighestGuids()
     if( result )
     {
         m_hiCreatureGuid = (*result)[0].GetUInt32()+1;
+	m_hiVehicleGuid = m_hiCreatureGuid;
         delete result;
     }
 
@@ -5785,6 +5787,13 @@ uint32 ObjectMgr::GenerateLowGuid(HighGuid guidhigh)
                 World::StopNow(ERROR_EXIT_CODE);
             }
             return m_hiCorpseGuid++;
+        case HIGHGUID_VEHICLE:
+            if(m_hiVehicleGuid>=0xFFFFFFFE)
+            {
+                sLog.outError("Vehicle guid overflow!! Can't continue, shutting down server. ");
+                World::StopNow(ERROR_EXIT_CODE);
+            }
+            return m_hiVehicleGuid++;
         default:
             ASSERT(0);
     }
