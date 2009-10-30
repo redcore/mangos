@@ -1820,8 +1820,7 @@ void Unit::CalcAbsorbResist(Unit *pVictim,SpellSchoolMask schoolMask, DamageEffe
                 }
 
                 // Reflective Shield
-                // INSIDER VERSION: if (spellProto->SpellIconID == 566)
-                if (spellProto->SpellFamilyFlags == 0x1 && canReflect)
+                if (spellProto->SpellIconID == 566 && canReflect)
                 {
                     if (pVictim == this)
                         break;
@@ -5701,19 +5700,6 @@ bool Unit::HandleDummyAuraProc(Unit *pVictim, uint32 damage, Aura* triggeredByAu
         {
             switch(dummySpell->Id)
             {
-                // Leader of the Pack
-                case 24932:
-                {
-                    if (triggerAmount == 0)
-                        break;
-                    basepoints0 = triggerAmount * GetMaxHealth() / 100;
-                    triggered_spell_id = 34299;
-                    if (triggeredByAura->GetCaster() != this || ((Player*)this)->HasSpellCooldown(triggered_spell_id))
-                        break;
-                    int32 basepoints1 = 2*triggerAmount;
-                    CastCustomSpell(this,60889,&basepoints1,0,0,true,0,triggeredByAura);
-                    break;
-                }
                 // Healing Touch (Dreamwalker Raiment set)
                 case 28719:
                 {
@@ -7142,6 +7128,15 @@ bool Unit::HandleProcTriggerSpell(Unit *pVictim, uint32 damage, Aura* triggeredB
                 }
                 //else if (auraSpellInfo->Id==40363)// Entangling Roots ()
                 //    trigger_spell_id = ????;
+                // Leader of the Pack
+                else if (auraSpellInfo->Id == 24932)
+                {
+                    if (triggerAmount == 0)
+                        return false;
+                    basepoints[0] = triggerAmount * GetMaxHealth() / 100;
+                    trigger_spell_id = 34299;
+                }
+                break;
             }
             case SPELLFAMILY_HUNTER:
                 // Piercing Shots
@@ -13525,6 +13520,28 @@ void Unit::KnockBackFrom(Unit* target, float horizintalSpeed, float verticalSpee
     }
 }
 
+float Unit::GetCombatRatingReduction(CombatRating cr) const
+{
+    if (GetTypeId() == TYPEID_PLAYER)
+        return ((Player const*)this)->GetRatingBonusValue(cr);
+    else if (((Creature const*)this)->isPet())
+    {
+        // Player's pet have 0.4 resilience  from owner
+        if (Unit* owner = GetOwner())
+            if(owner->GetTypeId() == TYPEID_PLAYER)
+                return ((Player*)owner)->GetRatingBonusValue(cr) * 0.4f;
+    }
+
+    return 0.0f;
+}
+
+uint32 Unit::GetCombatRatingDamageReduction(CombatRating cr, float rate, float cap, uint32 damage) const
+{
+    float percent = GetCombatRatingReduction(cr) * rate;
+    if (percent > cap)
+        percent = cap;
+    return uint32 (percent * damage / 100.0f);
+}
 
 // Netsky : Method for removing auras with explicit mechanic with do_not_remove exception
 void Unit::RemoveAurasDueToMechanic(uint32 mechanic_mask, uint32 do_not_remove)
