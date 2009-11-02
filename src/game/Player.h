@@ -1578,8 +1578,11 @@ class MANGOS_DLL_SPEC Player : public Unit
         uint32 GetGlyphSlot(uint8 slot) { return GetUInt32Value(PLAYER_FIELD_GLYPH_SLOTS_1 + slot); }
         void SetGlyph(uint8 slot, uint32 glyph)
         { 
-            m_Glyphs[m_activeSpec][slot] = glyph;
-            SetUInt32Value(PLAYER_FIELD_GLYPHS_1 + slot, glyph); 
+			if(slot < 6)
+			{
+				m_Glyphs[m_activeSpec][slot] = glyph;
+				SetUInt32Value(PLAYER_FIELD_GLYPHS_1 + slot, glyph); 
+			}
         }
         uint32 GetGlyph(uint8 slot) { return m_Glyphs[m_activeSpec][slot]; }
 
