@@ -381,14 +381,20 @@ CreatureAI* GetAI_npc_dancing_flames(Creature* pCreature)
 ## Triage quest
 ######*/
 
-#define SAY_DOC1    -1000201
-#define SAY_DOC2    -1000202
-#define SAY_DOC3    -1000203
+enum
+{
+    SAY_DOC1                    = -1000201,
+    SAY_DOC2                    = -1000202,
+    SAY_DOC3                    = -1000203,
 
-#define DOCTOR_ALLIANCE     12939
-#define DOCTOR_HORDE        12920
-#define ALLIANCE_COORDS     7
-#define HORDE_COORDS        6
+    QUEST_TRIAGE_H              = 6622,
+    QUEST_TRIAGE_A              = 6624,
+
+    DOCTOR_ALLIANCE             = 12939,
+    DOCTOR_HORDE                = 12920,
+    ALLIANCE_COORDS             = 7,
+    HORDE_COORDS                = 6
+};
 
 struct Location
 {
@@ -639,10 +645,10 @@ void npc_doctorAI::PatientDied(Location* Point)
 
         if (PatientDiedCount > 5 && Event)
         {
-            if (pPlayer->GetQuestStatus(6624) == QUEST_STATUS_INCOMPLETE)
-                pPlayer->FailQuest(6624);
-            else if (pPlayer->GetQuestStatus(6622) == QUEST_STATUS_INCOMPLETE)
-                pPlayer->FailQuest(6622);
+            if (pPlayer->GetQuestStatus(QUEST_TRIAGE_A) == QUEST_STATUS_INCOMPLETE)
+                pPlayer->FailQuest(QUEST_TRIAGE_A);
+            else if (pPlayer->GetQuestStatus(QUEST_TRIAGE_H) == QUEST_STATUS_INCOMPLETE)
+                pPlayer->FailQuest(QUEST_TRIAGE_H);
 
             Reset();
             return;
@@ -659,7 +665,7 @@ void npc_doctorAI::PatientSaved(Creature* soldier, Player* pPlayer, Location* Po
 {
     if (pPlayer && Playerguid == pPlayer->GetGUID())
     {
-        if ((pPlayer->GetQuestStatus(6624) == QUEST_STATUS_INCOMPLETE) || (pPlayer->GetQuestStatus(6622) == QUEST_STATUS_INCOMPLETE))
+        if ((pPlayer->GetQuestStatus(QUEST_TRIAGE_A) == QUEST_STATUS_INCOMPLETE) || (pPlayer->GetQuestStatus(QUEST_TRIAGE_H) == QUEST_STATUS_INCOMPLETE))
         {
             ++PatientSavedCount;
 
@@ -675,10 +681,10 @@ void npc_doctorAI::PatientSaved(Creature* soldier, Player* pPlayer, Location* Po
                     }
                 }
 
-                if (pPlayer->GetQuestStatus(6624) == QUEST_STATUS_INCOMPLETE)
-                    pPlayer->AreaExploredOrEventHappens(6624);
-                else if (pPlayer->GetQuestStatus(6622) == QUEST_STATUS_INCOMPLETE)
-                    pPlayer->AreaExploredOrEventHappens(6622);
+                if (pPlayer->GetQuestStatus(QUEST_TRIAGE_A) == QUEST_STATUS_INCOMPLETE)
+                    pPlayer->GroupEventHappens(QUEST_TRIAGE_A, m_creature);
+                else if (pPlayer->GetQuestStatus(QUEST_TRIAGE_H) == QUEST_STATUS_INCOMPLETE)
+                    pPlayer->GroupEventHappens(QUEST_TRIAGE_H, m_creature);
 
                 Reset();
                 return;
@@ -744,8 +750,11 @@ void npc_doctorAI::UpdateAI(const uint32 diff)
 
 bool QuestAccept_npc_doctor(Player* pPlayer, Creature* pCreature, const Quest* pQuest)
 {
-    if ((pQuest->GetQuestId() == 6624) || (pQuest->GetQuestId() == 6622))
-        ((npc_doctorAI*)pCreature->AI())->BeginEvent(pPlayer);
+    if ((pQuest->GetQuestId() == QUEST_TRIAGE_A) || (pQuest->GetQuestId() == QUEST_TRIAGE_H))
+    {
+        if (npc_doctorAI* pDocAI = dynamic_cast<npc_doctorAI*>(pCreature->AI()))
+            pDocAI->BeginEvent(pPlayer);
+    }
 
     return true;
 }
@@ -1038,8 +1047,12 @@ bool GossipHello_npc_innkeeper(Player* pPlayer, Creature* pCreature)
     if (IsHolidayActive(HOLIDAY_HALLOWS_END) && !pPlayer->HasAura(SPELL_TRICK_OR_TREATED,0))
         pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_ITEM_TRICK_OR_TREAT, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+2);
 
-    // Should only apply to innkeeper close to start areas. Area flag or other unknown fields?
-    pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_ITEM_WHAT_TO_DO, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+1);
+    // Should only apply to innkeeper close to start areas.
+    if (AreaTableEntry const* pAreaEntry = GetAreaEntryByAreaID(pCreature->GetAreaId()))
+    {
+        if (pAreaEntry->flags & AREA_FLAG_LOWLEVEL)
+            pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_ITEM_WHAT_TO_DO, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+1);
+    }
 
     pPlayer->TalkedToCreature(pCreature->GetEntry(), pCreature->GetGUID());
     pCreature->sendPreparedGossip(pPlayer);
@@ -1048,47 +1061,56 @@ bool GossipHello_npc_innkeeper(Player* pPlayer, Creature* pCreature)
 
 bool GossipSelect_npc_innkeeper(Player* pPlayer, Creature* pCreature, uint32 uiSender, uint32 uiAction)
 {
-    if (uiAction == GOSSIP_ACTION_INFO_DEF+1)
+    switch(uiAction)
     {
-        pPlayer->SEND_GOSSIP_MENU(TEXT_ID_WHAT_TO_DO, pCreature->GetGUID());
-        return true;
-    }
+        case GOSSIP_ACTION_INFO_DEF+1:
+            pPlayer->SEND_GOSSIP_MENU(TEXT_ID_WHAT_TO_DO, pCreature->GetGUID());
+            break;
 
-    if (uiAction == GOSSIP_ACTION_INFO_DEF+2)
-    {
-        pPlayer->CLOSE_GOSSIP_MENU();
-
-        // either trick or treat, 50% chance
-        if (urand(0, 1))
+        case GOSSIP_ACTION_INFO_DEF+2:
         {
-            pPlayer->CastSpell(pPlayer, SPELL_TREAT, true);
-        }
-        else
-        {
-            uint32 uiTrickSpell = 0;
+            pPlayer->CLOSE_GOSSIP_MENU();
 
-            switch(urand(0, 9))                             // note that female characters can get male costumes and vice versa
+            // either trick or treat, 50% chance
+            if (urand(0, 1))
             {
-                case 0: uiTrickSpell = SPELL_TRICK_NO_ATTACK; break;
-                case 1: uiTrickSpell = SPELL_TRICK_GNOME; break;
-                case 2: uiTrickSpell = SPELL_TRICK_GHOST_MALE; break;
-                case 3: uiTrickSpell = SPELL_TRICK_GHOST_FEMALE; break;
-                case 4: uiTrickSpell = SPELL_TRICK_NINJA_MALE; break;
-                case 5: uiTrickSpell = SPELL_TRICK_NINJA_FEMALE; break;
-                case 6: uiTrickSpell = SPELL_TRICK_PIRATE_MALE; break;
-                case 7: uiTrickSpell = SPELL_TRICK_PIRATE_FEMALE; break;
-                case 8: uiTrickSpell = SPELL_TRICK_SKELETON; break;
-                case 9: uiTrickSpell = SPELL_TRICK_BAT; break;
+                pPlayer->CastSpell(pPlayer, SPELL_TREAT, true);
+            }
+            else
+            {
+                uint32 uiTrickSpell = 0;
+
+                switch(urand(0, 9))                             // note that female characters can get male costumes and vice versa
+                {
+                    case 0: uiTrickSpell = SPELL_TRICK_NO_ATTACK; break;
+                    case 1: uiTrickSpell = SPELL_TRICK_GNOME; break;
+                    case 2: uiTrickSpell = SPELL_TRICK_GHOST_MALE; break;
+                    case 3: uiTrickSpell = SPELL_TRICK_GHOST_FEMALE; break;
+                    case 4: uiTrickSpell = SPELL_TRICK_NINJA_MALE; break;
+                    case 5: uiTrickSpell = SPELL_TRICK_NINJA_FEMALE; break;
+                    case 6: uiTrickSpell = SPELL_TRICK_PIRATE_MALE; break;
+                    case 7: uiTrickSpell = SPELL_TRICK_PIRATE_FEMALE; break;
+                    case 8: uiTrickSpell = SPELL_TRICK_SKELETON; break;
+                    case 9: uiTrickSpell = SPELL_TRICK_BAT; break;
+                }
+
+                pPlayer->CastSpell(pPlayer, uiTrickSpell, true);
             }
 
-            pPlayer->CastSpell(pPlayer, uiTrickSpell, true);
+            pPlayer->CastSpell(pPlayer, SPELL_TRICK_OR_TREATED, true);
+            break;
         }
 
-        pPlayer->CastSpell(pPlayer, SPELL_TRICK_OR_TREATED, true);
-        return true;                                        // prevent mangos handling
+        case GOSSIP_OPTION_VENDOR:
+            pPlayer->SEND_VENDORLIST(pCreature->GetGUID());
+            break;
+        case GOSSIP_OPTION_INNKEEPER:
+            pPlayer->CLOSE_GOSSIP_MENU();
+            pPlayer->SetBindPoint(pCreature->GetGUID());
+            break;
     }
 
-    return false;                                           // player didn't select scripted gossip, normal core handling
+    return true;
 }
 
 /*######
