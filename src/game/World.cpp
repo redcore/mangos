@@ -1123,6 +1123,9 @@ void World::SetInitialWorldSettings()
     ///- Initialize the random number generator
     srand((unsigned int)time(NULL));
 
+    ///- Time server startup
+    uint32 uStartTime = getMSTime();
+
     ///- Initialize config settings
     LoadConfigSettings();
 
@@ -1537,6 +1540,9 @@ void World::SetInitialWorldSettings()
     sLog.outString("Initialize AuctionHouseBot...");
     AuctionHouseBotInit();
     sLog.outString( "WORLD: World initialized" );
+
+    uint32 uStartInterval = getMSTimeDiff(uStartTime, getMSTime());
+    sLog.outString( "SERVER STARTUP TIME: %i minutes %i seconds", uStartInterval / 60000, (uStartInterval % 60000) / 1000 );
 }
 
 void World::DetectDBCLang()

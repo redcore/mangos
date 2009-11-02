@@ -9260,12 +9260,7 @@ bool Unit::isSpellCrit(Unit *pVictim, SpellEntry const *spellProto, SpellSchoolM
                         if (spellProto->SpellFamilyFlags & UI64LIT(0x0000100000000000))
                         {
                             if (Aura *flameShock = pVictim->GetAura(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_SHAMAN, UI64LIT(0x0000000010000000), 0, GetGUID()))
-                            {
-                                // Consume shock aura if not have Glyph of Flame Shock
-                                if (!GetAura(55447, 0))
-                                    pVictim->RemoveAurasByCasterSpell(flameShock->GetId(), GetGUID());
                                 return true;
-                            }
                         }
                         break;
                     case SPELLFAMILY_DRUID:
@@ -10737,7 +10732,12 @@ void Unit::UpdateSpeed(UnitMoveType mtype, bool forced)
     // Apply strongest slow aura mod to speed
     int32 slow = GetMaxNegativeAuraModifier(SPELL_AURA_MOD_DECREASE_SPEED);
     if (slow)
+    {
         speed *=(100.0f + slow)/100.0f;
+        float min_speed = (float)GetMaxPositiveAuraModifier(SPELL_AURA_MOD_MINIMUM_SPEED) / 100.0f;
+        if (speed < min_speed)
+            speed = min_speed;
+    }
     SetSpeed(mtype, speed, forced);
 }
 

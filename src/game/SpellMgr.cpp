@@ -1732,7 +1732,7 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
                     return false;
 
                 // Other auras remove Aura Mastery immunity effect.
-                if (spellInfo_1->Id == 64364 && spellInfo_2->SpellFamilyFlags2 == UI64LIT(0x20))
+                if (spellInfo_1->SpellFamilyFlags2 == UI64LIT(0x20) && spellInfo_2->Id == 64364)
                     return true;
 
                 // Swift Retribution / Improved Devotion Aura (talents) and Paladin Auras
@@ -1746,6 +1746,10 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
 
                 // Concentration Aura and Improved Concentration Aura and Aura Mastery
                 if ((spellInfo_1->SpellIconID == 1487) && (spellInfo_2->SpellIconID == 1487))
+                    return false;
+
+                // Seal of Corruption
+                if (spellInfo_1->SpellIconID == 2292 && spellInfo_2->SpellIconID == 2292)
                     return false;
             }
 
@@ -1772,6 +1776,10 @@ bool SpellMgr::IsNoStackSpellDueToSpell(uint32 spellId_1, uint32 spellId_2) cons
                 // Windfury weapon
                 if( spellInfo_1->SpellIconID==220 && spellInfo_2->SpellIconID==220 &&
                     spellInfo_1->SpellFamilyFlags != spellInfo_2->SpellFamilyFlags )
+                    return false;
+
+                // Ghost Wolf
+                if (spellInfo_1->SpellIconID == 67 && spellInfo_2->SpellIconID == 67)
                     return false;
             }
             // Bloodlust and Bloodthirst (multi-family check)
