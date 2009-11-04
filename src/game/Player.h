@@ -1574,17 +1574,33 @@ class MANGOS_DLL_SPEC Player : public Unit
         void ActivateSpec(uint8 spec);
 
         void InitGlyphsForLevel();
-        void SetGlyphSlot(uint8 slot, uint32 slottype) { SetUInt32Value(PLAYER_FIELD_GLYPH_SLOTS_1 + slot, slottype); }
-        uint32 GetGlyphSlot(uint8 slot) { return GetUInt32Value(PLAYER_FIELD_GLYPH_SLOTS_1 + slot); }
+        void SetGlyphSlot(uint8 slot, uint32 slottype)
+		{ 
+			uint16 temp = (uint16)slot & 0x0F;
+			
+			SetUInt32Value(PLAYER_FIELD_GLYPH_SLOTS_1 + temp, slottype);
+		}
+        uint32 GetGlyphSlot(uint8 slot)
+		{ 
+			
+			uint16 temp = (uint16)slot & 0x0F;
+
+			return GetUInt32Value(PLAYER_FIELD_GLYPH_SLOTS_1 + temp);
+		}
         void SetGlyph(uint8 slot, uint32 glyph)
         { 
-			if(slot < 6)
-			{
-				m_Glyphs[m_activeSpec][slot] = glyph;
-				SetUInt32Value(PLAYER_FIELD_GLYPHS_1 + slot, glyph); 
-			}
+				uint16 temp = (uint16)slot & 0x0F;
+
+				m_Glyphs[m_activeSpec][temp] = glyph;
+				SetUInt32Value(PLAYER_FIELD_GLYPHS_1 + temp, glyph); 
+			
         }
-        uint32 GetGlyph(uint8 slot) { return m_Glyphs[m_activeSpec][slot]; }
+        uint32 GetGlyph(uint8 slot)
+		{
+			uint16 temp = (uint16)slot & 0x0F;
+
+			return m_Glyphs[m_activeSpec][temp];
+		}
 
         uint32 GetFreePrimaryProfessionPoints() const { return GetUInt32Value(PLAYER_CHARACTER_POINTS2); }
         void SetFreePrimaryProfessions(uint16 profs) { SetUInt32Value(PLAYER_CHARACTER_POINTS2, profs); }
