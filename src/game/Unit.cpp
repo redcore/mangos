@@ -3734,7 +3734,7 @@ bool Unit::RemoveNoStackAurasDueToAura(Aura *Aur)
                 continue;
         }
 
-        uint32 i_effIndex = (*i.second->GetEffIndex();
+        uint32 i_effIndex = (*i).second->GetEffIndex();
 
         if(i_spellId == spellId) continue;
 
@@ -3744,8 +3744,7 @@ bool Unit::RemoveNoStackAurasDueToAura(Aura *Aur)
             if (i_spellProto->EffectTriggerSpell[j] == spellId)
                 is_triggered_by_spell = true;
 
-		
-        // prevent triggered aura of removing aura that triggering it (triggered effect early some aura of parent spell
+		// prevent triggered aura of removing aura that triggering it (triggered effect early some aura of parent spell
         for(int j = 0; j < 3; ++j)
             if (spellProto->EffectTriggerSpell[j] == i_spellId)
                 is_triggered_by_spell = true;
@@ -5889,7 +5888,7 @@ bool Unit::HandleDummyAuraProc(Unit *pVictim, uint32 damage, Aura* triggeredByAu
                     RedirectThreatEntry* entry = this->GetRedirectThreatEntry(57934);
                     if (!entry)
                         return false;
-					
+
                     triggered_spell_id = 59628;
                     target = entry->m_redirectTo;
                     break;
