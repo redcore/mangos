@@ -26,7 +26,6 @@
 #include "UpdateMask.h"
 #include "AuctionHouseMgr.h"
 #include "Util.h"
-#include "AuctionHouseBot.h"
 
 //please DO NOT use iterator++, because it is slower than ++iterator!!!
 //post-incrementation is always slower than pre-incrementation !
@@ -120,13 +119,12 @@ void WorldSession::SendAuctionOutbiddedMail(AuctionEntry *auction, uint32 newPri
         std::ostringstream msgAuctionOutbiddedSubject;
         msgAuctionOutbiddedSubject << auction->item_template << ":0:" << AUCTION_OUTBIDDED;
 
-        if (oldBidder && !_player)
-            oldBidder->GetSession()->SendAuctionBidderNotification( auction->GetHouseId(), auction->Id, AHBplayerGUID, newPrice, auction->GetAuctionOutBid(), auction->item_template);
-
-        if (oldBidder && _player)
+        if (oldBidder)
             oldBidder->GetSession()->SendAuctionBidderNotification( auction->GetHouseId(), auction->Id, _player->GetGUID(), newPrice, auction->GetAuctionOutBid(), auction->item_template);
 
-        WorldSession::SendMailTo(oldBidder, MAIL_AUCTION, MAIL_STATIONERY_AUCTION, auction->GetHouseId(), auction->bidder, msgAuctionOutbiddedSubject.str(), 0, NULL, auction->bid, 0, MAIL_CHECK_MASK_NONE);
+        MailDraft(msgAuctionOutbiddedSubject.str())
+            .AddMoney(auction->bid)
+            .SendMailTo(MailReceiver(oldBidder, auction->bidder), auction);
     }
 }
 
@@ -146,7 +144,9 @@ void WorldSession::SendAuctionCancelledToBidderMail( AuctionEntry* auction )
         std::ostringstream msgAuctionCancelledSubject;
         msgAuctionCancelledSubject << auction->item_template << ":0:" << AUCTION_CANCELLED_TO_BIDDER;
 
-        WorldSession::SendMailTo(bidder, MAIL_AUCTION, MAIL_STATIONERY_AUCTION, auction->GetHouseId(), auction->bidder, msgAuctionCancelledSubject.str(), 0, NULL, auction->bid, 0, MAIL_CHECK_MASK_NONE);
+        MailDraft(msgAuctionCancelledSubject.str())
+            .AddMoney(auction->bid)
+            .SendMailTo(MailReceiver(bidder, auction->bidder), auction);
     }
 }
 
@@ -249,10 +249,7 @@ void WorldSession::HandleAuctionSellItem( WorldPacket & recv_data )
 
     AuctionEntry *AH = new AuctionEntry;
     AH->Id = objmgr.GenerateAuctionID();
-    if(sWorld.getConfig(CONFIG_ALLOW_TWO_SIDE_INTERACTION_AUCTION))
-        AH->auctioneer = 23442;
-    else
-        AH->auctioneer = GUID_LOPART(auctioneer);
+    AH->auctioneer = GUID_LOPART(auctioneer);
     AH->item_guidlow = GUID_LOPART(item);
     AH->item_template = it->GetEntry();
     AH->owner = pl->GetGUIDLow();
@@ -264,7 +261,7 @@ void WorldSession::HandleAuctionSellItem( WorldPacket & recv_data )
     AH->deposit = deposit;
     AH->auctionHouseEntry = auctionHouseEntry;
 
-    sLog.outDetail("selling item %u to auctioneer %u with initial bid %u with buyout %u and with time %u (in sec) in auctionhouse %u", GUID_LOPART(item), AH->auctioneer, bid, buyout, auction_time, AH->GetHouseId());
+    sLog.outDetail("selling item %u to auctioneer %u with initial bid %u with buyout %u and with time %u (in sec) in auctionhouse %u", GUID_LOPART(item), GUID_LOPART(auctioneer), bid, buyout, auction_time, AH->GetHouseId());
     auctionHouse->AddAuction(AH);
 
     auctionmgr.AddAItem(it);
@@ -450,11 +447,10 @@ void WorldSession::HandleAuctionRemoveItem( WorldPacket & recv_data )
             std::ostringstream msgAuctionCanceledOwner;
             msgAuctionCanceledOwner << auction->item_template << ":0:" << AUCTION_CANCELED;
 
-            MailItemsInfo mi;
-            mi.AddItem(pItem);
-
             // item will deleted or added to received mail list
-            WorldSession::SendMailTo(pl, MAIL_AUCTION, MAIL_STATIONERY_AUCTION, auction->GetHouseId(), pl->GetGUIDLow(), msgAuctionCanceledOwner.str(), 0, &mi, 0, 0, MAIL_CHECK_MASK_NONE);
+            MailDraft(msgAuctionCanceledOwner.str())
+                .AddItem(pItem)
+                .SendMailTo(pl, auction);
         }
         else
         {
