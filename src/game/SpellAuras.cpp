@@ -2991,7 +2991,8 @@ void Aura::HandleAuraFeatherFall(bool apply, bool Real)
     // only at real add/remove aura
     if(!Real)
         return;
-
+	if (!m_target)
+		return;
     WorldPacket data;
     if(apply)
         data.Initialize(SMSG_MOVE_FEATHER_FALL, 8+4);

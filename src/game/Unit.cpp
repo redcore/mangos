@@ -965,7 +965,7 @@ void Unit::CastCustomSpell(Unit* Victim,uint32 spellId, int32 const* bp0, int32 
 
     if(!spellInfo)
     {
-        sLog.outError("CastCustomSpell: unknown spell id %i", spellId);
+        if(spellId != 0 ) sLog.outError("CastCustomSpell: unknown spell id %i", spellId);
         return;
     }
 
@@ -2394,6 +2394,9 @@ uint32 Unit::CalculateDamage (WeaponAttackType attType, bool normalized, bool ad
 float Unit::CalculateLevelPenalty(SpellEntry const* spellProto) const
 {
     if(spellProto->spellLevel <= 0)
+        return 1.0f;
+	
+	if(spellProto->AttributesEx2 & SPELL_ATTR_EX2_IGN_LVL_PENALTY) // some spells ignore level penalty
         return 1.0f;
 
     uint32 rank = spellmgr.GetSpellRank(spellProto->Id);
@@ -8490,7 +8493,7 @@ Pet* Unit::GetPet() const
 {
     if(uint64 pet_guid = GetPetGUID())
     {
-        if(Pet* pet = GetMap()->GetPet(pet_guid))
+        if(Pet* pet = this->GetMap()->GetPet(pet_guid))
             return pet;
 
         sLog.outError("Unit::GetPet: Pet %u not exist.",GUID_LOPART(pet_guid));

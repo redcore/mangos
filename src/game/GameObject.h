@@ -585,9 +585,9 @@ class MANGOS_DLL_SPEC GameObject : public WorldObject
         void DeleteFromDB();
 
         void SetOwnerGUID(uint64 owner)
-        {
-            m_spawnedByDefault = false;                     // all object with owner is despawned after delay
-            SetUInt64Value(OBJECT_FIELD_CREATED_BY, owner);
+        {   m_spawnedByDefault = false;                     // all object with owner is despawned after delay
+			uint16 temp_object = (uint16)OBJECT_FIELD_CREATED_BY & 0x07;
+	        SetUInt64Value(temp_object, owner);
         }
         uint64 GetOwnerGUID() const { return GetUInt64Value(OBJECT_FIELD_CREATED_BY); }
         Unit* GetOwner() const;
