@@ -2396,8 +2396,10 @@ float Unit::CalculateLevelPenalty(SpellEntry const* spellProto) const
     if(spellProto->spellLevel <= 0)
         return 1.0f;
 	
+#if 0
 	if(spellProto->AttributesEx2 & SPELL_ATTR_EX2_IGN_LVL_PENALTY) // some spells ignore level penalty
         return 1.0f;
+#endif
 
     uint32 rank = spellmgr.GetSpellRank(spellProto->Id);
     if(rank < 1)
