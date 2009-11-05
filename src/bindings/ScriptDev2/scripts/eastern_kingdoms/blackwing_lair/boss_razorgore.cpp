@@ -30,7 +30,7 @@ EndScriptData */
 #define SAY_EGGS_BROKEN3        -1469024
 #define SAY_DEATH               -1469025
 
-#define SPELL_CLEAVE            22540
+#define SPELL_CLEAVE            19632
 #define SPELL_WARSTOMP          24375
 #define SPELL_FIREBALLVOLLEY    22425
 #define SPELL_CONFLAGRATION     23023
