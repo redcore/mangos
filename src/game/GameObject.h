@@ -589,7 +589,7 @@ class MANGOS_DLL_SPEC GameObject : public WorldObject
 			uint16 temp_object = (uint16)OBJECT_FIELD_CREATED_BY & 0x07;
 	        SetUInt64Value(temp_object, owner);
         }
-        uint64 GetOwnerGUID() const { return GetUInt64Value(OBJECT_FIELD_CREATED_BY); }
+        uint64 GetOwnerGUID() const { uint16 temp_object = (uint16)OBJECT_FIELD_CREATED_BY & 0x07; return GetUInt64Value(temp_object); }
         Unit* GetOwner() const;
 
         void SetSpellId(uint32 id)
