@@ -121,7 +121,7 @@ void MapInstanced::UnloadAll(bool pForce)
 */
 Map* MapInstanced::CreateInstance(const uint32 mapId, Player * player)
 {
-    if(GetId() != mapId || !player || !(player->IsInWorld()))
+    if(GetId() != mapId || !player)
         return NULL;
 
     Map* map = NULL;
