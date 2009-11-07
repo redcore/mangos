@@ -136,7 +136,7 @@ Map* MapInstanced::CreateInstance(const uint32 mapId, Player * player)
         map = _FindMap(NewInstanceId);
         if(!map)
 		{
-			if(!(player->IsInWorld()) || !(player->GetBattleGround()))
+			if(!(player->GetBattleGround()))
 				return NULL;
             map = CreateBattleGroundMap(NewInstanceId, player->GetBattleGround());
 		}
