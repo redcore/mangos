@@ -3563,6 +3563,12 @@ bool Unit::AddAura(Aura *Aur)
                     // can be only single (this check done at _each_ aura add
                     RemoveAura(i2,AURA_REMOVE_BY_STACK);
                     break;
+                }  
+                // Judgements are always single 
+                else if (GetSpellSpecific(Aur->GetId()) == SPELL_JUDGEMENT)
+                {
+                    RemoveAura(i2,AURA_REMOVE_BY_STACK);
+                    break;
                 }
 
                 bool stop = false;
@@ -6022,7 +6028,31 @@ bool Unit::HandleDummyAuraProc(Unit *pVictim, uint32 damage, Aura* triggeredByAu
             if (dummySpell->SpellIconID == 3025)
             {
                 // 4 damage tick
-                basepoints0 = triggerAmount*damage/400;
+                int32 TickCD = 3000;
+                Aura const* PrevAura = NULL;
+
+                Unit::AuraList const &mPeriodic = target->GetAurasByType(SPELL_AURA_PERIODIC_DAMAGE);
+                for(Unit::AuraList::const_iterator i = mPeriodic.begin(); i != mPeriodic.end(); ++i)
+                {
+                    if ((*i)->GetCasterGUID() != this->GetGUID())
+                        continue;
+
+                    if ((*i)->GetSpellProto()->SpellIconID == 3025)
+                    {
+                        PrevAura = *i;
+                        break;
+                    }
+                }
+
+                if (PrevAura)
+                {
+                    int32 PrevTickDmg = SpellDamageBonus(target, PrevAura->GetSpellProto(), PrevAura->GetModifier()->m_amount, DOT);
+                    int32 RemainingTicks = 1 + PrevAura->GetAuraDuration() / TickCD;
+                    basepoints0 = RemainingTicks * PrevTickDmg;
+                }
+
+                basepoints0 = (basepoints0 +  triggerAmount * damage * 0.01) / 4;
+
                 triggered_spell_id = 61840;
                 break;
             }

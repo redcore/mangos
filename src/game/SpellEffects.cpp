@@ -328,7 +328,6 @@ void Spell::EffectSchoolDMG(uint32 effect_idx)
                     case 42384:                             // Brutal Swipe
                     case 45150:                             // Meteor Slash
                     case 64422: case 64688:                 // Sonic Screech
-                    case 66765: case 67333:                 // Meteor Fists
                     {
                         uint32 count = 0;
                         for(std::list<TargetInfo>::iterator ihit= m_UniqueTargetInfo.begin();ihit != m_UniqueTargetInfo.end();++ihit)
@@ -418,6 +417,9 @@ void Spell::EffectSchoolDMG(uint32 effect_idx)
                     damage+= uint32(m_caster->GetTotalAttackPowerValue(BASE_ATTACK) * 0.207f);
                 // Heroic Throw ${$m1+$AP*.50}
                 else if (m_spellInfo->SpellFamilyFlags & UI64LIT(0x0000000100000000))
+                    damage+= uint32(m_caster->GetTotalAttackPowerValue(BASE_ATTACK) * 0.5f);
+                // Shattering Throw ${$m1+$AP*.50}
+                else if (m_spellInfo->SpellFamilyFlags & UI64LIT(0x0040000000000000))
                     damage+= uint32(m_caster->GetTotalAttackPowerValue(BASE_ATTACK) * 0.5f);
                 // Shockwave ${$m3/100*$AP}
                 else if (m_spellInfo->SpellFamilyFlags & UI64LIT(0x0000800000000000))
@@ -5146,6 +5148,20 @@ void Spell::EffectWeaponDmg(uint32 i)
         else if(uint32 ammo = ((Player*)m_caster)->GetUInt32Value(PLAYER_AMMO_ID))
             ((Player*)m_caster)->DestroyItemCount(ammo, 1, true);
     }
+
+    switch(m_spellInfo->Id)                     // for spells with divided damage to targets
+    {
+        case 66765: case 67333:                 // Meteor Fists
+        {
+            uint32 count = 0;
+            for(std::list<TargetInfo>::iterator ihit= m_UniqueTargetInfo.begin();ihit != m_UniqueTargetInfo.end();++ihit) 
+            ++count;
+
+            m_damage /= count;                    // divide to all targets
+            break;
+        }
+        break;
+    }
 }
 
 void Spell::EffectThreat(uint32 /*i*/)
@@ -6041,7 +6057,7 @@ void Spell::EffectScriptEffect(uint32 effIndex)
                 if (!unitTarget)
                     return;
                 // remove immunity effects
-                unitTarget->RemoveAurasDueToMechanic(1<<MECHANIC_IMMUNE_SHIELD);
+                unitTarget->RemoveAurasDueToMechanic(1<<(MECHANIC_IMMUNE_SHIELD-1));
                 return;
             }
             break;
