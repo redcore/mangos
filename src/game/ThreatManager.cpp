@@ -392,7 +392,7 @@ void ThreatManager::addThreat(Unit* pVictim, float pThreat, bool crit, SpellScho
     assert(getOwner()->GetTypeId()== TYPEID_UNIT);
 
     float threat = ThreatCalcHelper::calcThreat(pVictim, iOwner, pThreat, crit, schoolMask, pThreatSpell);
-
+	if (!pVictim) return;
     HostileReference* ref = iThreatContainer.addThreat(pVictim, threat);
     // Ref is not in the online refs, search the offline refs next
     if(!ref)

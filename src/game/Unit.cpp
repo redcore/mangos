@@ -4464,7 +4464,7 @@ void Unit::RemoveAllGameObjects()
     // remove references to unit
     for(GameObjectList::iterator i = m_gameObj.begin(); i != m_gameObj.end();)
     {
-        (*i)->SetOwnerGUID(0);
+        (*i)->SetOwnerGUID((uint64)0);
         (*i)->SetRespawnTime(0);
 
         if (this->GetTypeId() == TYPEID_PLAYER)
@@ -8495,9 +8495,11 @@ Player* Unit::GetCharmerOrOwnerPlayerOrPlayerItself()
 
 Pet* Unit::GetPet() const
 {
+	if (!(GetMap()))
+		return NULL;
     if(uint64 pet_guid = GetPetGUID())
     {
-        if(Pet* pet = this->GetMap()->GetPet(pet_guid))
+        if(Pet* pet = GetMap()->GetPet(pet_guid))
             return pet;
 
         sLog.outError("Unit::GetPet: Pet %u not exist.",GUID_LOPART(pet_guid));
