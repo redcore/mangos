@@ -170,7 +170,7 @@ Map* MapInstanced::CreateInstance(const uint32 mapId, Player * player)
         {
             // if no instanceId via group members or instance saves is found
             // the instance will be created for the first time
-            NewInstanceId = MapManager::Instance().GenerateInstanceId();
+            NewInstanceId = mapmgr.GenerateInstanceId();
 
             Difficulty diff = player->GetGroup() ? player->GetGroup()->GetDifficulty(IsRaid()) : player->GetDifficulty(IsRaid());
             map = CreateInstance(NewInstanceId, NULL, diff);
@@ -191,7 +191,7 @@ InstanceMap* MapInstanced::CreateInstance(uint32 InstanceId, InstanceSave *save,
         sLog.outError("CreateInstance: no entry for map %d", GetId());
         assert(false);
     }
-    if (!objmgr.GetInstanceTemplate(GetId()))
+    if (!ObjectMgr::GetInstanceTemplate(GetId()))
     {
         sLog.outError("CreateInstance: no instance template for map %d", GetId());
         assert(false);

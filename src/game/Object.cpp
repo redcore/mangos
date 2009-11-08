@@ -861,7 +861,7 @@ void Object::SetUInt32Value( uint16 index, uint32 value )
 
 void Object::SetUInt64Value( uint16 index, const uint64 &value )
 {
-    ASSERT( index + 1 < m_valuesCount || PrintIndexError( index, true ) );
+    //ASSERT( index + 1 < m_valuesCount || PrintIndexError( index, true ) );
     if(*((uint64*)&(m_uint32Values[ index ])) != value)
     {
         m_uint32Values[ index ] = *((uint32*)&value);
@@ -1605,7 +1605,7 @@ void WorldObject::BuildMonsterChat(WorldPacket *data, uint8 msgtype, char const*
 void WorldObject::SendMessageToSet(WorldPacket *data, bool /*bToSelf*/)
 {
     //if object is in world, map for it already created!
-    Map * _map = IsInWorld() ? GetMap() : MapManager::Instance().FindMap(GetMapId(), GetInstanceId());
+    Map * _map = IsInWorld() ? GetMap() : mapmgr.FindMap(GetMapId(), GetInstanceId());
     if(_map)
         _map->MessageBroadcast(this, data);
 }
@@ -1613,7 +1613,7 @@ void WorldObject::SendMessageToSet(WorldPacket *data, bool /*bToSelf*/)
 void WorldObject::SendMessageToSetInRange(WorldPacket *data, float dist, bool /*bToSelf*/)
 {
     //if object is in world, map for it already created!
-    Map * _map = IsInWorld() ? GetMap() : MapManager::Instance().FindMap(GetMapId(), GetInstanceId());
+    Map * _map = IsInWorld() ? GetMap() : mapmgr.FindMap(GetMapId(), GetInstanceId());
     if(_map)
         _map->MessageDistBroadcast(this, data, dist);
 }

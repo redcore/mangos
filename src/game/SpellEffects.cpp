@@ -2959,7 +2959,7 @@ void Spell::DoCreateItem(uint32 i, uint32 itemtype)
     Player* player = (Player*)unitTarget;
 
     uint32 newitemid = itemtype;
-    ItemPrototype const *pProto = objmgr.GetItemPrototype( newitemid );
+    ItemPrototype const *pProto = ObjectMgr::GetItemPrototype( newitemid );
     if(!pProto)
     {
         player->SendEquipError( EQUIP_ERR_ITEM_NOT_FOUND, NULL, NULL );
@@ -5191,7 +5191,7 @@ void Spell::EffectHealMaxHealth(uint32 /*i*/)
     m_healing += heal;
 }
 
-void Spell::EffectInterruptCast(uint32 /*i*/)
+void Spell::EffectInterruptCast(uint32 i)
 {
     if(!unitTarget)
         return;
@@ -5200,16 +5200,16 @@ void Spell::EffectInterruptCast(uint32 /*i*/)
 
     // TODO: not all spells that used this effect apply cooldown at school spells
     // also exist case: apply cooldown to interrupted cast only and to all spells
-    for (uint32 i = CURRENT_FIRST_NON_MELEE_SPELL; i < CURRENT_MAX_SPELL; ++i)
+    for (uint32 it = CURRENT_FIRST_NON_MELEE_SPELL; it < CURRENT_MAX_SPELL; ++it)
     {
-        if (Spell* spell = unitTarget->GetCurrentSpell(CurrentSpellTypes(i)))
+        if (Spell* spell = unitTarget->GetCurrentSpell(CurrentSpellTypes(it)))
         {
             SpellEntry const* curSpellInfo = spell->m_spellInfo;
             // check if we can interrupt spell
             if ((curSpellInfo->InterruptFlags & SPELL_INTERRUPT_FLAG_INTERRUPT) && curSpellInfo->PreventionType == SPELL_PREVENTION_TYPE_SILENCE )
             {
-                unitTarget->ProhibitSpellScholl(GetSpellSchoolMask(curSpellInfo), GetSpellDuration(m_spellInfo));
-                unitTarget->InterruptSpell(CurrentSpellTypes(i),false);
+                unitTarget->ProhibitSpellScholl(GetSpellSchoolMask(curSpellInfo), unitTarget->CalculateSpellDuration(m_spellInfo, i, unitTarget));
+                unitTarget->InterruptSpell(CurrentSpellTypes(it),false);
             }
         }
     }
@@ -7130,7 +7130,7 @@ void Spell::EffectTransmitted(uint32 effIndex)
 {
     uint32 name_id = m_spellInfo->EffectMiscValue[effIndex];
 
-    GameObjectInfo const* goinfo = objmgr.GetGameObjectInfo(name_id);
+    GameObjectInfo const* goinfo = ObjectMgr::GetGameObjectInfo(name_id);
 
     if (!goinfo)
     {
