@@ -1456,9 +1456,9 @@ void World::SetInitialWorldSettings()
     sObjectMgr.LoadDbScriptStrings();
 
     sLog.outString( "Loading VehicleData..." );
-    objmgr.LoadVehicleData();
+    sObjectMgr.LoadVehicleData();
     sLog.outString( "Loading VehicleSeatData..." );
-    objmgr.LoadVehicleSeatData();
+    sObjectMgr.LoadVehicleSeatData();
 
     sLog.outString( "Loading CreatureEventAI Texts...");
     sEventAIMgr.LoadCreatureEventAI_Texts(false);       // false, will checked in LoadCreatureEventAI_Scripts

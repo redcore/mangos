@@ -13420,7 +13420,7 @@ void Unit::EnterVehicle(Vehicle *vehicle, int8 seat_id, bool force)
     m_SeatData.c_time = v->GetCreationTime();
     m_SeatData.dbc_seat = veSeat->m_ID;
     m_SeatData.seat = seat_id;
-    m_SeatData.s_flags = objmgr.GetSeatFlags(veSeat->m_ID);
+    m_SeatData.s_flags = sObjectMgr.GetSeatFlags(veSeat->m_ID);
     m_SeatData.v_flags = v->GetVehicleFlags();
 
     addUnitState(UNIT_STAT_ON_VEHICLE);

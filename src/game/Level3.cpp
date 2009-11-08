@@ -849,7 +849,7 @@ bool ChatHandler::HandleReloadSpellDisabledCommand(const char* /*arg*/)
 bool ChatHandler::HandleReloadVehicleDataCommand(const char*)
 {
     sLog.outString( "Re-Loading `vehicle_data` Table!" );
-    objmgr.LoadVehicleData();
+    sObjectMgr.LoadVehicleData();
     SendGlobalSysMessage("DB table `vehicle_data` reloaded.");
     return true;
 }
@@ -857,7 +857,7 @@ bool ChatHandler::HandleReloadVehicleDataCommand(const char*)
 bool ChatHandler::HandleReloadVehicleSeatDataCommand(const char*)
 {
     sLog.outString( "Re-Loading `vehicle_seat_data` Table!" );
-    objmgr.LoadVehicleSeatData();
+    sObjectMgr.LoadVehicleSeatData();
     SendGlobalSysMessage("DB table `vehicle_seat_data` reloaded.");
     return true;
 }
