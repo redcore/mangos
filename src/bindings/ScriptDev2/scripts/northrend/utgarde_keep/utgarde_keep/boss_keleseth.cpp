@@ -1,4 +1,6 @@
-/* Copyright (C) 2006 - 2009 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
+/*
+ * Copyright (C) 2009 Trinity <http://www.trinitycore.org/>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -6,315 +8,382 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 /* ScriptData
-SDName: Boss_Keleseth
-SD%Complete: 60%
-SDComment:
+SDName: Boss_Prince_Keleseth
+SD%Complete: 90
+SDComment:  Needs Prince Movements, Needs adjustments to blizzlike timers, Needs Shadowbolt castbar, Needs right Ressurect Visual, Needs Some Heroic Spells
 SDCategory: Utgarde Keep
 EndScriptData */
 
 #include "precompiled.h"
 #include "utgarde_keep.h"
 
-enum
+enum eEnums
 {
-    SAY_AGGRO               = -1574000,
-    SAY_FROSTTOMB           = -1574001,
-    SAY_SKELETONS           = -1574002,
-    SAY_KILL                = -1574003,
-    SAY_DEATH               = -1574004,
-    EMOTE_FROST_TOMB        = -1574021,
+    ACHIEVEMENT_ON_THE_ROCKS                 = 1919,
 
-    // Boss Spells
-    SPELL_SHADOWBOLT        = 43667,
-    SPELL_SHADOWBOLT_H      = 59389,
+    SPELL_SHADOWBOLT                         = 43667,
+    SPELL_SHADOWBOLT_HEROIC                  = 59389,
+    SPELL_FROST_TOMB                         = 48400,
+    SPELL_FROST_TOMB_SUMMON                  = 42714,
+    SPELL_DECREPIFY                          = 42702,
+	SPELL_DECREPIFY_H						 = 59397,
+    SPELL_BONE_ARMOR						 = 59386,
+    SPELL_SCOURGE_RESSURRECTION              = 42704,
+    CREATURE_FROSTTOMB                       = 23965,
+    CREATURE_SKELETON                        = 23970,
 
-    SPELL_SUMMON_FROST_TOMB = 42714,
-    SPELL_FROST_TOMB        = 48400,                        // stun and deal damage
-
-    // Skeleton Spells
-    SPELL_DECREPIFY         = 42702,
-    SPELL_DECREPIFY_H       = 59397,
-    SPELL_BONE_ARMOR        = 59386,                        // casted on boss, heroic only
-
-    NPC_FROST_TOMB          = 23965,
-    NPC_VRYKUL_SKELETON     = 23970
+    SAY_AGGRO                                = -1574000,
+    SAY_FROST_TOMB                           = -1574001,
+    SAY_SKELETONS                            = -1574002,
+    SAY_KILL                                 = -1574003,
+    SAY_DEATH                                = -1574004
 };
 
-const float RUN_DISTANCE = 20.0;
+#define SKELETONSPAWN_Z                          42.8668
 
-static float fAddPosition[4] = {163.5727, 252.1900, 42.8684, 5.57052};
-
-/*######
-## mob_vrykul_skeleton
-######*/
-
-struct MANGOS_DLL_DECL mob_vrykul_skeletonAI : public ScriptedAI
+float SkeletonSpawnPoint[5][5]=
 {
-    mob_vrykul_skeletonAI(Creature* pCreature) : ScriptedAI(pCreature) 
-    {
-        m_pInstance = ((ScriptedInstance*)pCreature->GetInstanceData());
-        m_bIsHeroicMode = m_creature->GetMap()->IsHeroic();
-        Reset();
-    }
-
-    ScriptedInstance* m_pInstance;
-    bool m_bIsHeroicMode;
-
-    Creature* m_pKeleseth;
-    uint32 m_uiCastTimer;
-    uint32 m_uiReviveTimer;
-
-    void Reset()
-    {
-        m_uiReviveTimer = 0;
-        m_uiCastTimer = urand(5000, 10000);                 // taken out of thin air
-
-        if (!m_pInstance)
-            return;
-
-        m_pKeleseth = m_pInstance->instance->GetCreature(m_pInstance->GetData64(NPC_KELESETH));
-    }
-
-    void MoveInLineOfSight(Unit* pWho)
-    {
-        if (!pWho || m_uiReviveTimer)
-            return;
-
-        ScriptedAI::MoveInLineOfSight(pWho);
-    }
-
-    void AttackStart(Unit* pWho)
-    {
-        if (!pWho || m_uiReviveTimer)
-            return;
-
-        ScriptedAI::AttackStart(pWho);
-    }
-
-    void Revive()
-    {
-        m_creature->SetHealth(m_creature->GetMaxHealth());
-        m_creature->RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
-        m_creature->SetStandState(UNIT_STAND_STATE_STAND);
-
-        if (Unit* pTarget = SelectUnit(SELECT_TARGET_RANDOM, 0))
-            m_creature->GetMotionMaster()->MoveChase(pTarget);
-
-        DoResetThreat();
-        m_uiReviveTimer = 0;
-    }
-
-    void DamageTaken(Unit* pDoneBy, uint32 &uiDamage)
-    {
-        if (!m_pKeleseth || !m_pKeleseth->isAlive())
-        {
-            uiDamage = m_creature->GetHealth();
-            return;
-        }
-
-        if (m_uiReviveTimer)
-        {
-            uiDamage = 0;
-            return;
-        }
-
-        if (m_creature->GetHealth() < uiDamage)
-        {
-            // start faking death
-            uiDamage = 0;
-            m_uiReviveTimer = 6000;
-            m_creature->SetHealth(0);
-            m_creature->RemoveAllAuras();
-            m_creature->GetMotionMaster()->Clear();
-            m_creature->SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
-            m_creature->SetStandState(UNIT_STAND_STATE_DEAD);
-            return;
-       }
-    }
-
-    void UpdateAI(const uint32 uiDiff)
-    {
-        if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
-            return;
-
-        if (m_uiReviveTimer)
-        {
-            if (m_uiReviveTimer <= uiDiff)
-                Revive();
-            else
-                m_uiReviveTimer -= uiDiff;
-
-            return;
-        }
-
-        if (m_uiCastTimer < uiDiff)
-        {
-            if (m_bIsHeroicMode)
-            {
-                if (urand(0, 3))
-                    DoCast(m_creature->getVictim(), SPELL_DECREPIFY_H);
-                else if (m_pKeleseth && m_pKeleseth->isAlive())
-                    DoCast(m_pKeleseth, SPELL_BONE_ARMOR);
-            }
-            else
-                DoCast(m_creature->getVictim(), SPELL_DECREPIFY);
-
-            m_uiCastTimer = urand(5000, 15000);
-        }
-        else
-            m_uiCastTimer -= uiDiff;
-
-        DoMeleeAttackIfReady();
-    }
+    {154.2559, 258.2093},
+    {155.2559, 259.2093},
+    {156.2559, 257.2093},
+    {157.2559, 260.2093},
+    {158.2559, 261.2093},
 };
 
-CreatureAI* GetAI_mob_vrykul_skeleton(Creature* pCreature)
-{
-    return new mob_vrykul_skeletonAI(pCreature);
-}
+float AttackLoc[3]={197.636, 194.046, 40.8164};
 
-/*######
-## boss_keleseth
-######*/
+bool ShatterFrostTomb; // needed for achievement: On The Rocks(1919)
+char Keleseth_event;
+
+struct MANGOS_DLL_DECL mob_frost_tombAI : public ScriptedAI
+{
+    mob_frost_tombAI(Creature *pCreature) : ScriptedAI(pCreature)
+    {
+        FrostTombGUID = 0;
+    }
+
+    uint64 FrostTombGUID;
+
+    void SetPrisoner(Unit* uPrisoner)
+    {
+        FrostTombGUID = uPrisoner->GetGUID();
+    }
+
+    void Reset(){ FrostTombGUID = 0; }
+    void EnterCombat(Unit* who) {}
+    void AttackStart(Unit* who) {}
+    void MoveInLineOfSight(Unit* who) {}
+
+    void JustDied(Unit *killer)
+    {
+        if (killer->GetGUID() != m_creature->GetGUID())
+            ShatterFrostTomb = true;
+
+        if (FrostTombGUID)
+        {
+            Unit* FrostTomb = Unit::GetUnit((*m_creature),FrostTombGUID);
+            if (FrostTomb)
+                FrostTomb->RemoveAurasDueToSpell(SPELL_FROST_TOMB);
+        }
+    }
+
+    void UpdateAI(const uint32 diff)
+    {
+        Unit* temp = Unit::GetUnit((*m_creature),FrostTombGUID);
+        if ((temp && temp->isAlive() && !temp->HasAura(SPELL_FROST_TOMB)) || !temp)
+            m_creature->DealDamage(m_creature, m_creature->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
+    }
+};
 
 struct MANGOS_DLL_DECL boss_kelesethAI : public ScriptedAI
 {
-    boss_kelesethAI(Creature* pCreature) : ScriptedAI(pCreature)
+    boss_kelesethAI(Creature *pCreature) : ScriptedAI(pCreature)
     {
-        m_pInstance = (ScriptedInstance*)pCreature->GetInstanceData();
-        m_bIsHeroicMode = pCreature->GetMap()->IsHeroic();
-        Reset();
+        pInstance = (ScriptedInstance*)pCreature->GetInstanceData();
+        Heroic = pCreature->GetMap()->IsHeroic();
+		Reset();
     }
 
-    ScriptedInstance* m_pInstance;
-    bool m_bIsHeroicMode;
+    ScriptedInstance* pInstance;
 
-    uint32 m_uiFrostTombTimer; 
-    uint32 m_uiSummonTimer;
-    uint32 m_uiShadowboltTimer;
+    uint32 FrostTombTimer;
+    uint32 SummonSkeletonsTimer;
+    uint32 RespawnSkeletonsTimer;
+    uint32 ShadowboltTimer;
+    uint64 SkeletonGUID[5];
+    bool Skeletons;
+    bool Heroic;
+    bool RespawnSkeletons;
 
-    void Reset() 
+    void Reset()
     {
-        // timers need confirmation
-        m_uiFrostTombTimer = 20000;
-        m_uiSummonTimer = 5000 ;
-        m_uiShadowboltTimer = 0;
+		Keleseth_event = NOT_STARTED;
+
+        ShadowboltTimer = 0;
+        Skeletons = false;
+
+        ShatterFrostTomb = false;
+
+        ResetTimer();
+
     }
 
-    void AttackStart(Unit* pWho)
+    void KilledUnit(Unit *victim)
     {
-        if (m_creature->Attack(pWho, true))
-        {
-            m_creature->AddThreat(pWho);
-            m_creature->SetInCombatWith(pWho);
-            pWho->SetInCombatWith(m_creature);
+        if (victim == m_creature)
+            return;
 
-            m_creature->GetMotionMaster()->MoveChase(pWho, RUN_DISTANCE);
-        }
-    }
-
-    void Aggro(Unit* pWho)
-    {
-        DoScriptText(SAY_AGGRO, m_creature);
-    }
-
-    void SummonAdds()
-    {
-        for (uint8 i=0; i<4; ++i)
-            m_creature->SummonCreature(NPC_VRYKUL_SKELETON, fAddPosition[0]+rand()%7, fAddPosition[1]+rand()%7, fAddPosition[2], fAddPosition[3], TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, MINUTE*IN_MILISECONDS);
-    }
-
-    void JustSummoned(Creature* pSummoned)
-    {
-        if (pSummoned->GetEntry() == NPC_VRYKUL_SKELETON)
-            pSummoned->AI()->AttackStart(m_creature->getVictim());
-
-        if (pSummoned->GetEntry() == NPC_FROST_TOMB)
-            pSummoned->ApplySpellImmune(0, IMMUNITY_DAMAGE, SPELL_SCHOOL_MASK_FROST, true);
-    }
-
-    void JustDied(Unit* pKiller)
-    {
-        DoScriptText(SAY_DEATH, m_creature);
-    }
-
-    void KilledUnit(Unit* pVictim)
-    {
         DoScriptText(SAY_KILL, m_creature);
     }
 
-    void UpdateAI(const uint32 uiDiff)
+    void JustDied(Unit* killer)
+    {
+        DoScriptText(SAY_DEATH, m_creature);
+
+        if (Heroic && !ShatterFrostTomb)
+        {
+            AchievementEntry const *AchievOnTheRocks = GetAchievementStore()->LookupEntry(ACHIEVEMENT_ON_THE_ROCKS);
+            if (AchievOnTheRocks)
+            {
+                Map* pMap = m_creature->GetMap();
+                if (pMap && pMap->IsDungeon())
+                {
+                    Map::PlayerList const &players = pMap->GetPlayers();
+                    for (Map::PlayerList::const_iterator itr = players.begin(); itr != players.end(); ++itr)
+                        itr->getSource()->CompletedAchievement(AchievOnTheRocks);
+                }
+            }
+        }
+		Keleseth_event = DONE;
+    }
+
+    void EnterCombat(Unit* who)
+    {
+        DoScriptText(SAY_AGGRO, m_creature);
+        
+		Keleseth_event = IN_PROGRESS;
+
+    }
+
+    void ResetTimer(uint32 inc = 0)
+    {
+        SummonSkeletonsTimer = 5000 + inc;
+        FrostTombTimer = 28000 + inc;
+    }
+
+    void UpdateAI(const uint32 diff)
     {
         if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
             return;
 
-        if (m_uiSummonTimer)
+        if (ShadowboltTimer <= diff)
         {
-            if (m_uiSummonTimer <= uiDiff)
+            Unit *pTarget = SelectUnit(SELECT_TARGET_TOPAGGRO, 0);
+            if (pTarget && pTarget->isAlive() && pTarget->GetTypeId() == TYPEID_PLAYER)
+                m_creature->CastSpell(pTarget, Heroic ? SPELL_SHADOWBOLT_HEROIC : SPELL_SHADOWBOLT, true);
+            ShadowboltTimer = 10000;
+        } else ShadowboltTimer -= diff;
+
+        if (!Skeletons)
+            if ((SummonSkeletonsTimer <= diff))
             {
-                SummonAdds();
-                m_uiSummonTimer = 0;
-            }
-            else
-                m_uiSummonTimer -= uiDiff;
-        }
-
-        if (m_uiShadowboltTimer < uiDiff)
-        {
-            DoCast(m_creature->getVictim(), m_bIsHeroicMode ? SPELL_SHADOWBOLT_H : SPELL_SHADOWBOLT);
-            m_uiShadowboltTimer = 3000;
-        }
-        else
-            m_uiShadowboltTimer -= uiDiff;
-
-        if (m_uiFrostTombTimer < uiDiff)
-        {
-            if (Unit* pTombTarget = SelectUnit(SELECT_TARGET_RANDOM, 0))
-            {
-                //DoCast(pTombTarget, SPELL_SUMMON_FROST_TOMB);
-                float fPosX, fPosY, fPosZ;
-                pTombTarget->GetPosition(fPosX, fPosY, fPosZ);
-
-                if (Creature* pFrostTomb = m_creature->SummonCreature(NPC_FROST_TOMB, fPosX, fPosY, fPosZ, 0, TEMPSUMMON_TIMED_DESPAWN, 20000))
+                Creature* Skeleton;
+                DoScriptText(SAY_SKELETONS, m_creature);
+                for (uint8 i = 0; i < 5; ++i)
                 {
-                    pFrostTomb->AddThreat(pTombTarget);
-                    pFrostTomb->CastSpell(pTombTarget, SPELL_FROST_TOMB, false);
+                    Skeleton = m_creature->SummonCreature(CREATURE_SKELETON, SkeletonSpawnPoint[i][0], SkeletonSpawnPoint[i][1] , SKELETONSPAWN_Z, 0, TEMPSUMMON_CORPSE_TIMED_DESPAWN,3000);
+                    if (Skeleton)
+                    {
+                        Skeleton->clearUnitState(MOVEMENTFLAG_WALK_MODE);
+                        Skeleton->GetMotionMaster()->MovePoint(0, m_creature->GetPositionX(), m_creature->GetPositionY() , m_creature->GetPositionZ());
+                        Skeleton->AddThreat(m_creature->getVictim(), 0.0f);
+                        
+                    }
                 }
+                Skeletons = true;
+            } else SummonSkeletonsTimer -= diff;
 
-                DoScriptText(SAY_FROSTTOMB, m_creature);
-                DoScriptText(EMOTE_FROST_TOMB, m_creature, pTombTarget);
+        if (FrostTombTimer <= diff)
+        {
+            Unit *pTarget = SelectUnit(SELECT_TARGET_RANDOM, 1);
+            if (pTarget && pTarget->isAlive() && pTarget->GetTypeId() == TYPEID_PLAYER)
+            {
+                //DoCast(pTarget, SPELL_FROST_TOMB_SUMMON, true);
+                if (Creature *pChains = m_creature->SummonCreature(CREATURE_FROSTTOMB, pTarget->GetPositionX(), pTarget->GetPositionY(), pTarget->GetPositionZ(), 0, TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN, 20000))
+                {
+                    CAST_AI(mob_frost_tombAI, pChains->AI())->SetPrisoner(pTarget);
+                    pChains->CastSpell(pTarget, SPELL_FROST_TOMB, true);
+
+                    DoScriptText(SAY_FROST_TOMB, m_creature);
+                }
             }
-
-            m_uiFrostTombTimer = 25000;
-        }
-        else
-            m_uiFrostTombTimer -= uiDiff;
+            FrostTombTimer = 15000;
+        } else FrostTombTimer -= diff;
 
         DoMeleeAttackIfReady();
     }
 };
 
+struct MANGOS_DLL_DECL mob_vrykul_skeletonAI : public ScriptedAI
+{
+    mob_vrykul_skeletonAI(Creature *pCreature) : ScriptedAI(pCreature)
+    {
+        pInstance = (ScriptedInstance*)pCreature->GetInstanceData();
+		Heroic = pCreature->GetMap()->IsHeroic();
+		Reset();
+    }
+
+    ScriptedInstance *pInstance;
+    uint32 Respawn_Time;
+    uint64 Target_Guid;
+    uint32 Decrepify_Timer;
+	Creature* m_pKeleseth;
+
+	bool Heroic;
+    bool isDead;
+
+    void Reset()
+    {
+		
+		m_pKeleseth = pInstance->instance->GetCreature(pInstance->GetData64(NPC_KELESETH));
+
+	    if(!m_creature->SelectHostileTarget() || !m_creature->getVictim())
+		{
+			if(!m_pKeleseth->SelectHostileTarget() || !m_pKeleseth->getVictim())
+			{
+				if (m_creature->isAlive())
+					m_creature->DealDamage(m_creature, m_creature->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
+			}
+			else m_creature->AddThreat(m_pKeleseth->getVictim(), 0.0f);
+		}
+ 
+        Respawn_Time = 12000;
+        Decrepify_Timer = 10000 + rand()%20000;
+        isDead = false;
+
+    }
+
+    void EnterCombat(Unit *who){}
+    void DamageTaken(Unit *done_by, uint32 &damage)
+    {
+        if (done_by->GetGUID() == m_creature->GetGUID())
+            return;
+
+        if ( m_creature->GetHealth() <= damage)
+        {
+			m_creature->SetHealth(1);
+			damage = 0;
+            PretendToDie();
+            
+        }
+    }
+
+    void PretendToDie()
+    {
+        isDead = true;
+		m_creature->InterruptNonMeleeSpells(true);
+        m_creature->RemoveAllAuras();
+        m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+        m_creature->GetMotionMaster()->MovementExpired(false);
+        m_creature->GetMotionMaster()->MoveIdle();
+        m_creature->SetStandState(UNIT_STAND_STATE_DEAD);
+    };
+
+    void Resurrect()
+    {
+        isDead = false;
+        m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+        m_creature->SetStandState(UNIT_STAND_STATE_STAND);
+        m_creature->CastSpell(m_creature,SPELL_SCOURGE_RESSURRECTION,true);
+
+        if (m_creature->getVictim())
+        {
+            m_creature->GetMotionMaster()->MoveChase(m_creature->getVictim());
+            m_creature->AI()->AttackStart(m_creature->getVictim());
+        }
+        else
+            m_creature->GetMotionMaster()->Initialize();
+    };
+
+    void UpdateAI(const uint32 diff)
+    {
+        if (pInstance && m_pKeleseth->isAlive())
+        {
+            if (isDead)
+            {
+                if (Respawn_Time <= diff)
+                {
+                    Resurrect();
+                    Respawn_Time = 12000;
+                } else Respawn_Time -= diff;
+            }
+            else
+            {
+                if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
+                    return;
+
+                if (Decrepify_Timer <= diff)
+                {
+					if (Heroic)
+					{
+						if (urand(0, 3))
+							DoCast(m_creature->getVictim(), SPELL_DECREPIFY_H);
+						else if (m_pKeleseth && m_pKeleseth->isAlive() && !(m_pKeleseth->HasAura(SPELL_BONE_ARMOR)))
+							DoCast(m_pKeleseth, SPELL_BONE_ARMOR);
+					}
+					else
+						DoCast(m_creature->getVictim(),SPELL_DECREPIFY);
+
+                    Decrepify_Timer = 30000;
+                } else Decrepify_Timer -= diff;
+
+                DoMeleeAttackIfReady();
+            }
+        }else
+        {
+            if (m_creature->isAlive())
+                m_creature->DealDamage(m_creature, m_creature->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
+        }
+
+    }
+};
+
+CreatureAI* GetAI_mob_frost_tomb(Creature* pCreature)
+{
+    return new mob_frost_tombAI(pCreature);
+}
+
 CreatureAI* GetAI_boss_keleseth(Creature* pCreature)
 {
-    return new boss_kelesethAI(pCreature);
+    return new boss_kelesethAI (pCreature);
+}
+
+CreatureAI* GetAI_mob_vrykul_skeleton(Creature* pCreature)
+{
+    return new mob_vrykul_skeletonAI (pCreature);
 }
 
 void AddSC_boss_keleseth()
 {
-    Script* newscript;
+    Script *newscript;
 
     newscript = new Script;
     newscript->Name = "boss_keleseth";
     newscript->GetAI = &GetAI_boss_keleseth;
+    newscript->RegisterSelf();
+
+    newscript = new Script;
+    newscript->Name = "mob_frost_tomb";
+    newscript->GetAI = &GetAI_mob_frost_tomb;
     newscript->RegisterSelf();
 
     newscript = new Script;

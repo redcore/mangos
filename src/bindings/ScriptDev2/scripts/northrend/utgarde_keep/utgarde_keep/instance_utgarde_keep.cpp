@@ -34,6 +34,8 @@ struct MANGOS_DLL_DECL instance_utgarde_keep : public ScriptedInstance
     uint64 m_uiKelesethGUID;
     uint64 m_uiSkarvaldGUID;
     uint64 m_uiDalronnGUID;
+	uint64 m_uiIngvarGUID;
+	uint64 m_uiAxeTargetGUID;
 
     uint64 m_uiBellow1GUID;
     uint64 m_uiBellow2GUID;
@@ -49,6 +51,8 @@ struct MANGOS_DLL_DECL instance_utgarde_keep : public ScriptedInstance
         m_uiKelesethGUID = 0;
         m_uiSkarvaldGUID = 0;
         m_uiDalronnGUID = 0;
+		m_uiIngvarGUID = 0;
+		m_uiAxeTargetGUID = 0;
 
         m_uiBellow1GUID = 0;
         m_uiBellow2GUID = 0;
@@ -65,6 +69,8 @@ struct MANGOS_DLL_DECL instance_utgarde_keep : public ScriptedInstance
             case NPC_KELESETH: m_uiKelesethGUID = pCreature->GetGUID(); break;
             case NPC_SKARVALD: m_uiSkarvaldGUID = pCreature->GetGUID(); break;
             case NPC_DALRONN: m_uiDalronnGUID = pCreature->GetGUID(); break;
+			case NPC_INGVAR: m_uiIngvarGUID = pCreature->GetGUID(); break;
+			case NPC_AXE_TARGET: m_uiAxeTargetGUID = pCreature->GetGUID(); break;
         }
     }
 
@@ -149,6 +155,10 @@ struct MANGOS_DLL_DECL instance_utgarde_keep : public ScriptedInstance
                 return m_uiSkarvaldGUID;
             case NPC_DALRONN:
                 return m_uiDalronnGUID;
+            case NPC_INGVAR:
+                return m_uiIngvarGUID;
+			case NPC_AXE_TARGET:
+				return m_uiAxeTargetGUID;
             case GO_BELLOW_1:
                 return m_uiBellow1GUID;
             case GO_BELLOW_2:

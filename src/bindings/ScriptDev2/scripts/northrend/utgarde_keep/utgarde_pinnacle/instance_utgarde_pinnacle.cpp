@@ -20,114 +20,166 @@ SD%Complete: 25%
 SDComment:
 SDCategory: Utgarde Pinnacle
 EndScriptData */
-
 #include "precompiled.h"
 #include "utgarde_pinnacle.h"
 
+#define ENCOUNTERS     4
+
+/* Utgarde Pinnacle encounters:
+0 - Svala Sorrowgrave
+1 - Gortok Palehoof
+2 - Skadi the Ruthless
+3 - King Ymiron
+*/
+
 struct MANGOS_DLL_DECL instance_pinnacle : public ScriptedInstance
 {
-    instance_pinnacle(Map* pMap) : ScriptedInstance(pMap) {Initialize();};
+    instance_pinnacle(Map *Map) : ScriptedInstance(Map) {Initialize();};
 
-    uint32 m_auiEncounter[MAX_ENCOUNTER];
-    std::string strInstData;
+    uint64 SvalaSorrowgrave;
+    uint64 GortokPalehoof;
+    uint64 SkadiRuthless;
+    uint64 KingYmiron;
+    uint64 FrenziedWorgen;
+    uint64 RavenousFurbolg;
+    uint64 MassiveJormungar;
+    uint64 FerociousRhino;
+    uint64 RitualTarget;
 
-    void Initialize()
-    {
-        memset(&m_auiEncounter, 0, sizeof(m_auiEncounter));
+    uint64 SkadiRuthlessDoor;
+    uint64 YmironDoor;
+
+    uint32 Encounters[ENCOUNTERS];
+    std::string str_data;
+
+   void Initialize()
+   {
+       SvalaSorrowgrave   = 0;
+       GortokPalehoof     = 0;
+       SkadiRuthless      = 0;
+       KingYmiron         = 0;
+   	   FrenziedWorgen     = 0;
+   	   RavenousFurbolg    = 0;
+   	   MassiveJormungar   = 0;
+   	   FerociousRhino     = 0;
+   	   RitualTarget       = 0;
+
+   	   SkadiRuthlessDoor  = 0;
+   	   YmironDoor         = 0;
+
+       for(uint8 i = 0; i < ENCOUNTERS; ++i)
+           Encounters[i] = NOT_STARTED;
     }
 
-    uint32 GetData(uint32 uiType)
+    bool IsEncounterInProgress() const
     {
-        switch(uiType)
-        {
-            case TYPE_SVALA:
-                return m_auiEncounter[0];
-            case TYPE_GORTOK:
-                return m_auiEncounter[1];
-            case TYPE_SKADI:
-                return m_auiEncounter[2];
-            case TYPE_YMIRON:
-                return m_auiEncounter[3];
-        }
+        for(uint8 i = 0; i < ENCOUNTERS; ++i)
+            if(Encounters[i] == IN_PROGRESS) return true;
 
+        return false;
+    }
+
+    void OnCreatureCreate(Creature *creature)
+    {
+        switch(creature->GetEntry())
+        {
+            case 26668:    SvalaSorrowgrave = creature->GetGUID();         break;
+            case 26687:    GortokPalehoof = creature->GetGUID();           break;
+            case 26693:    SkadiRuthless = creature->GetGUID();            break;
+            case 26861:    KingYmiron = creature->GetGUID();               break;
+            case 26683:    FrenziedWorgen = creature->GetGUID();           break;
+            case 26684:    RavenousFurbolg = creature->GetGUID();          break;
+            case 26685:    MassiveJormungar = creature->GetGUID();         break;
+            case 26686:    FerociousRhino = creature->GetGUID();           break;
+            case 27327:    RitualTarget = creature->GetGUID();             break;
+        }
+    }
+
+    void OnObjectCreate(GameObject* gobj)
+    {
+        switch(gobj->GetEntry())
+        {
+            case 192173: SkadiRuthlessDoor     = gobj->GetGUID(); break;
+            case 192174: YmironDoor            = gobj->GetGUID(); break;
+        }
+    }
+
+    uint64 GetData64(uint32 identifier)
+    {
+        switch(identifier)
+        {
+            case DATA_SVALA_SORROWGRAVE:          return SvalaSorrowgrave;
+            case DATA_GORTOK_PALEHOOF:            return GortokPalehoof;
+            case DATA_SKADI_THE_RUTHLESS:         return SkadiRuthless;
+            case DATA_KING_YMIRON:                return KingYmiron;
+            case DATA_MOB_FRENZIED_WORGEN:        return FrenziedWorgen;
+            case DATA_MOB_RAVENOUS_FURBOLG:       return RavenousFurbolg;
+            case DATA_MOB_MASSIVE_JORMUNGAR:      return MassiveJormungar;
+            case DATA_MOB_FEROCIOUS_RHINO:        return FerociousRhino;
+        }
         return 0;
     }
 
-    void SetData(uint32 uiType, uint32 uiData)
+    void SetData(uint32 type, uint32 data)
     {
-        debug_log("SD2: Instance Pinnacle: SetData received for type %u with data %u", uiType, uiData);
-
-        switch(uiType)
+        switch(type)
         {
-            case TYPE_SVALA:
-                m_auiEncounter[0] = uiData;
-                break;
-            case TYPE_GORTOK:
-                m_auiEncounter[1] = uiData;
-                break;
-            case TYPE_SKADI:
-                m_auiEncounter[2] = uiData;
-                break;
-            case TYPE_YMIRON:
-                m_auiEncounter[3] = uiData;
-                break;
-            default:
-                error_log("SD2: Instance Pinnacle: SetData = %u for type %u does not exist/not implemented.", uiType, uiData);
-                break;
-        }
-
-        //saving also SPECIAL for this instance
-        if (uiData == DONE || uiData == SPECIAL)
-        {
-            OUT_SAVE_INST_DATA;
-
-            std::ostringstream saveStream;
-            saveStream << m_auiEncounter[0] << " " << m_auiEncounter[1] << " " << m_auiEncounter[2] << " " << m_auiEncounter[3];
-
-            strInstData = saveStream.str();
-
-            SaveToDB();
-            OUT_SAVE_INST_DATA_COMPLETE;
+        case DATA_SVALA_SORROWGRAVE:
+            SvalaSorrowgrave = data; break;
+        case DATA_SVALA_SORROWGRAVE_EVENT:
+            if(data == DONE)
+            {
+                //
+            }
+            Encounters[0] = data;break;
+        case DATA_GORTOK_PALEHOOF_EVENT:
+            if(data == DONE)
+            {
+                //
+            }
+            Encounters[1] = data; break;
+        case DATA_SKADI_THE_RUTHLESS_EVENT:
+            if(data == DONE)
+            {
+                OpenDoor(SkadiRuthlessDoor);
+            }
+            Encounters[2] = data; break;
+        case DATA_KING_YMIRON_EVENT:
+            if(data == DONE)
+            {
+                OpenDoor(YmironDoor);
+            }
+            Encounters[3] = data; break;
         }
     }
 
-    const char* Save()
+    uint32 GetData(uint32 type)
     {
-        return strInstData.c_str();
+        switch(type)
+        {
+            case DATA_SVALA_SORROWGRAVE_EVENT:        return Encounters[0];
+            case DATA_GORTOK_PALEHOOF_EVENT:          return Encounters[1];
+            case DATA_SKADI_THE_RUTHLESS_EVENT:       return Encounters[2];
+            case DATA_KING_YMIRON_EVENT:              return Encounters[3];
+        }
+        return 0;
     }
 
-    void Load(const char* chrIn)
+    void OpenDoor(uint64 DoorGUID)
     {
-        if (!chrIn)
-        {
-            OUT_LOAD_INST_DATA_FAIL;
-            return;
-        }
-
-        OUT_LOAD_INST_DATA(chrIn);
-
-        std::istringstream loadStream(chrIn);
-        loadStream >> m_auiEncounter[0] >> m_auiEncounter[1] >> m_auiEncounter[2] >> m_auiEncounter[3];
-
-        for(uint8 i = 0; i < MAX_ENCOUNTER; ++i)
-        {
-            if (m_auiEncounter[i] == IN_PROGRESS)
-                m_auiEncounter[i] = NOT_STARTED;
-        }
-
-        OUT_LOAD_INST_DATA_COMPLETE;
+        if (GameObject* pDoors = instance->GetGameObject(DoorGUID))
+            pDoors->SetGoState(GO_STATE_ACTIVE);
     }
 };
 
-InstanceData* GetInstanceData_instance_pinnacle(Map* pMap)
+InstanceData* GetInstanceData_instance_pinnacle(Map* map)
 {
-    return new instance_pinnacle(pMap);
+    return new instance_pinnacle(map);
 }
 
 void AddSC_instance_pinnacle()
 {
-    Script* newscript;
-
+    Script *newscript;
     newscript = new Script;
     newscript->Name = "instance_pinnacle";
     newscript->GetInstanceData = &GetInstanceData_instance_pinnacle;

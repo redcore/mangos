@@ -4,7 +4,7 @@
 
 #ifndef SC_CREATURE_H
 #define SC_CREATURE_H
-
+#define HEROIC(n,h) (HeroicMode ? h : n)
 #include "CreatureAI.h"
 #include "Creature.h"
 
