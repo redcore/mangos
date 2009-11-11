@@ -339,7 +339,7 @@ class ObjectMgr
 
         typedef std::vector<std::string> ScriptNameMap;
 
-        Player* GetPlayer(const char* name) const { return ObjectAccessor::Instance().FindPlayerByName(name);}
+        Player* GetPlayer(const char* name) const { return ObjectAccessor::FindPlayerByName(name);}
         Player* GetPlayer(uint64 guid) const { return ObjectAccessor::FindPlayer(guid); }
 
         static GameObjectInfo const *GetGameObjectInfo(uint32 id) { return sGOStorage.LookupEntry<GameObjectInfo>(id); }
@@ -726,7 +726,21 @@ class ObjectMgr
         static PetNameInvalidReason CheckPetName( const std::string& name );
         static bool IsValidCharterName( const std::string& name );
 
-        static bool CheckDeclinedNames(std::wstring mainpart, DeclinedName const& names);
+		static bool CheckDeclinedNames(std::wstring w_ownname, DeclinedName const& names);
+
+        void LoadSpellDisabledEntrys();
+        uint8 IsSpellDisabled(uint32 spellid)
+        {
+            uint8 result=0;
+            SpellDisabledMap::const_iterator itr = m_spell_disabled.find(spellid);
+            if(itr != m_spell_disabled.end())
+            {
+                result=1;
+                if(itr->second != 0)
+                    result=2;
+            }
+            return result;
+        }
 
         int GetIndexForLocale(LocaleConstant loc);
         LocaleConstant GetLocaleForIndex(int i);
@@ -849,6 +863,9 @@ class ObjectMgr
         typedef std::set<std::wstring> ReservedNamesMap;
         ReservedNamesMap    m_ReservedNames;
 
+        typedef UNORDERED_MAP<uint32, uint32> SpellDisabledMap;
+        SpellDisabledMap  m_spell_disabled;
+
         GraveYardMap        mGraveYardMap;
 
         GameTeleMap         m_GameTeleMap;
@@ -920,7 +937,7 @@ class ObjectMgr
         CacheTrainerSpellMap m_mCacheTrainerSpellMap;
 };
 
-#define objmgr MaNGOS::Singleton<ObjectMgr>::Instance()
+#define sObjectMgr MaNGOS::Singleton<ObjectMgr>::Instance()
 
 // scripting access functions
 MANGOS_DLL_SPEC bool LoadMangosStrings(DatabaseType& db, char const* table,int32 start_value = MAX_CREATURE_AI_TEXT_STRING_ID, int32 end_value = std::numeric_limits<int32>::min());

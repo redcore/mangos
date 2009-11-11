@@ -26,7 +26,7 @@
 #include "UpdateFields.h"
 #include "SharedDefines.h"
 #include "ThreatManager.h"
-#include "HostilRefManager.h"
+#include "HostileRefManager.h"
 #include "FollowerReference.h"
 #include "FollowerRefManager.h"
 #include "Utilities/EventProcessor.h"
@@ -168,6 +168,7 @@ enum ShapeshiftForm
     FORM_GHOUL              = 0x07,
     FORM_DIREBEAR           = 0x08,
     FORM_CREATUREBEAR       = 0x0E,
+    FORM_SHADOWDANCE        = 0x0D,
     FORM_CREATURECAT        = 0x0F,
     FORM_GHOSTWOLF          = 0x10,
     FORM_BATTLESTANCE       = 0x11,
@@ -176,6 +177,7 @@ enum ShapeshiftForm
     FORM_TEST               = 0x14,
     FORM_ZOMBIE             = 0x15,
     FORM_METAMORPHOSIS      = 0x16,
+    FORM_UNDEAD             = 0x19,
     FORM_FLIGHT_EPIC        = 0x1B,
     FORM_SHADOW             = 0x1C,
     FORM_FLIGHT             = 0x1D,
@@ -301,7 +303,9 @@ enum UnitModifierType
     BASE_PCT = 1,
     TOTAL_VALUE = 2,
     TOTAL_PCT = 3,
-    MODIFIER_TYPE_END = 4
+    NONSTACKING_VALUE = 4,
+    NONSTACKING_PCT = 5,
+    MODIFIER_TYPE_END = 6
 };
 
 enum WeaponDamageRange
@@ -388,7 +392,8 @@ enum DeathState
     CORPSE      = 2,
     DEAD        = 3,
     JUST_ALIVED = 4,
-    DEAD_FALLING= 5
+    DEAD_FALLING= 5,
+    GHOULED     = 6
 };
 
 enum UnitState
@@ -1050,9 +1055,9 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         uint32 GetSpellDamageReduction(uint32 damage) const { return GetCombatRatingDamageReduction(CR_CRIT_TAKEN_MELEE, 1.0f, 100.0f, damage); }
 
         float  MeleeSpellMissChance(Unit *pVictim, WeaponAttackType attType, int32 skillDiff, SpellEntry const *spell);
-        SpellMissInfo MeleeSpellHitResult(Unit *pVictim, SpellEntry const *spell);
+        SpellMissInfo MeleeSpellHitResult(Unit *pVictim, SpellEntry const *spell, bool canMiss = true);
         SpellMissInfo MagicSpellHitResult(Unit *pVictim, SpellEntry const *spell);
-        SpellMissInfo SpellHitResult(Unit *pVictim, SpellEntry const *spell, bool canReflect = false);
+        SpellMissInfo SpellHitResult(Unit *pVictim, SpellEntry const *spell, bool canReflect = false, bool canMiss = true);
 
         float GetUnitDodgeChance()    const;
         float GetUnitParryChance()    const;
@@ -1110,6 +1115,7 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
             return m_Auras.find(spellEffectPair(spellId, effIndex)) != m_Auras.end();
         }
         bool HasAura(uint32 spellId) const;
+        bool IsLastAura(uint32 spellId, uint32 effIndex) const;
 
         bool virtual HasSpell(uint32 /*spellID*/) const { return false; }
 
@@ -1154,6 +1160,11 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
 
         void SendMonsterMove(float NewPosX, float NewPosY, float NewPosZ, uint8 type, MonsterMovementFlags flags, uint32 Time, Player* player = NULL);
         void SendMonsterMoveByPath(Path const& path, uint32 start, uint32 end, MonsterMovementFlags flags);
+
+        void SendChangeCurrentVictimOpcode(HostileReference* pHostileReference);
+        void SendClearThreatListOpcode();
+        void SendRemoveFromThreatListOpcode(HostileReference* pHostileReference);
+        void SendThreatListUpdate();
 
         void BuildHeartBeatMsg( WorldPacket *data ) const;
 
@@ -1212,6 +1223,7 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         void RemoveGuardian(Pet* pet);
         void RemoveGuardians();
         Pet* FindGuardianWithEntry(uint32 entry);
+        GuardianPetList const& GetGuardians() const { return m_guardianPets; }
 
         bool isCharmed() const { return GetCharmerGUID() != 0; }
 
@@ -1370,6 +1382,12 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         void removeHatedBy(HostileReference* /*pHostileReference*/ ) { /* nothing to do yet */ }
         HostileRefManager& getHostileRefManager() { return m_HostileRefManager; }
 
+        // Threat redirection methods
+        RedirectThreatMap* GetRedirectThreatMap();
+        void AddRedirectThreatEntry(Unit* redirectTo, uint32 spellId, float redirectPct);
+        void RemoveRedirectThreatEntry(uint32 spellId);
+        RedirectThreatEntry* GetRedirectThreatEntry(uint32 spellId);
+
         uint32 GetVisibleAura(uint8 slot)
         {
             VisibleAuraMap::const_iterator itr = m_visibleAuras.find(slot);
@@ -1434,7 +1452,7 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         void RemoveGameObject(uint32 spellid, bool del);
         void RemoveAllGameObjects();
 
-        uint32 CalculateDamage(WeaponAttackType attType, bool normalized);
+        uint32 CalculateDamage(WeaponAttackType attType, bool normalized, bool addTotalPct);
         float GetAPMultiplier(WeaponAttackType attType, bool normalized);
         void ModifyAuraState(AuraState flag, bool apply);
         bool HasAuraState(AuraState flag) const { return HasFlag(UNIT_FIELD_AURASTATE, 1<<(flag-1)); }
@@ -1538,6 +1556,8 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         PetAuraSet m_petAuras;
         void AddPetAura(PetAura const* petSpell);
         void RemovePetAura(PetAura const* petSpell);
+        // Netsky : Method for removing auras with explicit mechanic with do_not_remove exception
+        void RemoveAurasDueToMechanic(uint32 mechanic_mask, uint32 do_not_remove=0);
 
     protected:
         explicit Unit ();
@@ -1601,6 +1621,9 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         // player or player's pet
         float GetCombatRatingReduction(CombatRating cr) const;
         uint32 GetCombatRatingDamageReduction(CombatRating cr, float rate, float cap, uint32 damage) const;
+
+        RedirectThreatEntry* GetRedirectThreatEntry(RedirectThreatMap* map, uint32 spellId);
+        float AddThreatToRedirectionTargets(Unit* pVictim, float threat, bool crit, SpellSchoolMask schoolMask, SpellEntry const *threatSpell);
 
         uint32 m_state;                                     // Even derived shouldn't modify
         uint32 m_CombatTimer;

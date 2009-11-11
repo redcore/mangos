@@ -88,6 +88,10 @@ libmangosgame_a_SOURCES = \
 	Chat.cpp \
 	Chat.h \
 	ChatHandler.cpp \
+	ChatLexicsCutter.cpp \
+	ChatLexicsCutter.h \
+	ChatLog.cpp \
+	ChatLog.h \
 	CombatHandler.cpp \
 	ConfusedMovementGenerator.cpp \
 	ConfusedMovementGenerator.h \
@@ -148,8 +152,8 @@ libmangosgame_a_SOURCES = \
 	GuildHandler.cpp \
 	HomeMovementGenerator.cpp \
 	HomeMovementGenerator.h \
-	HostilRefManager.cpp \
-	HostilRefManager.h \
+	HostileRefManager.cpp \
+	HostileRefManager.h \
 	IdleMovementGenerator.cpp \
 	IdleMovementGenerator.h \
 	InstanceData.cpp \
@@ -218,8 +222,8 @@ libmangosgame_a_SOURCES = \
 	PlayerDump.h \
 	PointMovementGenerator.cpp \
 	PointMovementGenerator.h \
-	PoolHandler.cpp \
-	PoolHandler.h \
+	PoolManager.cpp \
+	PoolManager.h \
 	QueryHandler.cpp \
 	QuestDef.cpp \
 	QuestDef.h \
@@ -283,8 +287,6 @@ libmangosgame_a_SOURCES = \
 	Weather.h \
 	World.cpp \
 	World.h \
-	WorldLog.cpp \
-	WorldLog.h \
 	WorldSession.cpp \
 	WorldSession.h \
 	WorldSocket.cpp \

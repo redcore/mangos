@@ -18,6 +18,7 @@
 
 #include "Common.h"
 #include "Log.h"
+#include "ChatLog.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "World.h"
@@ -179,11 +180,23 @@ void WorldSession::HandleMessagechatOpcode( WorldPacket & recv_data )
                 break;
 
             if(type == CHAT_MSG_SAY)
+            {
+                sChatLog.ChatMsg(GetPlayer(), msg, type);
+
                 GetPlayer()->Say(msg, lang);
+            }
             else if(type == CHAT_MSG_EMOTE)
+            {
+                sChatLog.ChatMsg(GetPlayer(), msg, type);
+
                 GetPlayer()->TextEmote(msg);
+            }
             else if(type == CHAT_MSG_YELL)
+            {
+                sChatLog.ChatMsg(GetPlayer(), msg, type);
+
                 GetPlayer()->Yell(msg, lang);
+            }
         } break;
 
         case CHAT_MSG_WHISPER:
@@ -198,6 +211,8 @@ void WorldSession::HandleMessagechatOpcode( WorldPacket & recv_data )
             if(msg.empty())
                 break;
 
+            sChatLog.WhisperMsg(GetPlayer(), to, msg);
+
             if(!normalizePlayerName(to))
             {
                 WorldPacket data(SMSG_CHAT_PLAYER_NOT_FOUND, (to.size()+1));
@@ -206,7 +221,7 @@ void WorldSession::HandleMessagechatOpcode( WorldPacket & recv_data )
                 break;
             }
 
-            Player *player = objmgr.GetPlayer(to.c_str());
+            Player *player = sObjectMgr.GetPlayer(to.c_str());
             uint32 tSecurity = GetSecurity();
             uint32 pSecurity = player ? player->GetSession()->GetSecurity() : SEC_PLAYER;
             if (!player || (tSecurity == SEC_PLAYER && pSecurity > SEC_PLAYER && !player->isAcceptWhispers()))
@@ -250,6 +265,8 @@ void WorldSession::HandleMessagechatOpcode( WorldPacket & recv_data )
             if(msg.empty())
                 break;
 
+            sChatLog.PartyMsg(GetPlayer(), msg);
+
             // if player is in battleground, he cannot say to battleground members by /p
             Group *group = GetPlayer()->GetOriginalGroup();
             // so if player hasn't OriginalGroup and his player->GetGroup() is BG raid, then return
@@ -278,9 +295,11 @@ void WorldSession::HandleMessagechatOpcode( WorldPacket & recv_data )
             if(msg.empty())
                 break;
 
+            sChatLog.GuildMsg(GetPlayer(), msg, false);
+
             if (GetPlayer()->GetGuildId())
             {
-                Guild *guild = objmgr.GetGuildById(GetPlayer()->GetGuildId());
+                Guild *guild = sObjectMgr.GetGuildById(GetPlayer()->GetGuildId());
                 if (guild)
                     guild->BroadcastToGuild(this, msg, lang == LANG_ADDON ? LANG_ADDON : LANG_UNIVERSAL);
             }
@@ -304,9 +323,11 @@ void WorldSession::HandleMessagechatOpcode( WorldPacket & recv_data )
             if(msg.empty())
                 break;
 
+            sChatLog.GuildMsg(GetPlayer(), msg, true); 
+
             if (GetPlayer()->GetGuildId())
             {
-                Guild *guild = objmgr.GetGuildById(GetPlayer()->GetGuildId());
+                Guild *guild = sObjectMgr.GetGuildById(GetPlayer()->GetGuildId());
                 if (guild)
                     guild->BroadcastToOfficers(this, msg, lang == LANG_ADDON ? LANG_ADDON : LANG_UNIVERSAL);
             }
@@ -328,6 +349,8 @@ void WorldSession::HandleMessagechatOpcode( WorldPacket & recv_data )
 
             if(msg.empty())
                 break;
+
+            sChatLog.RaidMsg(GetPlayer(), msg, type);
 
             // if player is in battleground, he cannot say to battleground members by /ra
             Group *group = GetPlayer()->GetOriginalGroup();
@@ -356,6 +379,8 @@ void WorldSession::HandleMessagechatOpcode( WorldPacket & recv_data )
             if(msg.empty())
                 break;
 
+            sChatLog.RaidMsg(GetPlayer(), msg, type);
+
             // if player is in battleground, he cannot say to battleground members by /ra
             Group *group = GetPlayer()->GetOriginalGroup();
             if ((!group && !(group = GetPlayer()->GetGroup())) || group->isBGGroup() || !group->isRaidGroup())
@@ -375,6 +400,8 @@ void WorldSession::HandleMessagechatOpcode( WorldPacket & recv_data )
 
             if(msg.empty())
                 break;
+
+            sChatLog.RaidMsg(GetPlayer(), msg, type);
 
             Group *group = GetPlayer()->GetGroup();
             if(!group || !group->isRaidGroup() || !(group->IsLeader(GetPlayer()->GetGUID()) || group->IsAssistant(GetPlayer()->GetGUID())))
@@ -397,6 +424,8 @@ void WorldSession::HandleMessagechatOpcode( WorldPacket & recv_data )
             if(msg.empty())
                 break;
 
+            sChatLog.BattleGroundMsg(GetPlayer(), msg, type);
+
             //battleground raid is always in Player->GetGroup(), never in GetOriginalGroup()
             Group *group = GetPlayer()->GetGroup();
             if(!group || !group->isBGGroup())
@@ -417,6 +446,8 @@ void WorldSession::HandleMessagechatOpcode( WorldPacket & recv_data )
 
             if(msg.empty())
                 break;
+
+            sChatLog.BattleGroundMsg(GetPlayer(), msg, type);
 
             //battleground raid is always in Player->GetGroup(), never in GetOriginalGroup()
             Group *group = GetPlayer()->GetGroup();
@@ -440,6 +471,8 @@ void WorldSession::HandleMessagechatOpcode( WorldPacket & recv_data )
 
             if(msg.empty())
                 break;
+
+            sChatLog.ChannelMsg(GetPlayer(), channel, msg);
 
             if(ChannelMgr* cMgr = channelMgr(_player->GetTeam()))
             {
@@ -602,7 +635,7 @@ void WorldSession::HandleChatIgnoredOpcode(WorldPacket& recv_data )
     recv_data >> iguid;
     recv_data >> unk;                                       // probably related to spam reporting
 
-    Player *player = objmgr.GetPlayer(iguid);
+    Player *player = sObjectMgr.GetPlayer(iguid);
     if(!player || !player->GetSession())
         return;
 

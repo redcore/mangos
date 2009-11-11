@@ -802,6 +802,16 @@ struct MovementInfo
     void SetMovementFlags(MovementFlags f) { flags = f; }
 };
 
+ //here stored last safe player's position
+struct SafePosition
+{
+    float x, y, z;
+    SafePosition()
+    {
+        x = y = z = 0.0f;
+    }
+};
+
 // flags that use in movement check for example at spell casting
 MovementFlags const movementFlagsMask = MovementFlags(
     MOVEMENTFLAG_FORWARD |MOVEMENTFLAG_BACKWARD  |MOVEMENTFLAG_STRAFE_LEFT|MOVEMENTFLAG_STRAFE_RIGHT|
@@ -1391,6 +1401,7 @@ class MANGOS_DLL_SPEC Player : public Unit
 
         bool LoadFromDB(uint32 guid, SqlQueryHolder *holder);
 
+        bool MinimalLoadFromDB(QueryResult *result, uint32 guid);
         static bool   LoadValuesArrayFromDB(Tokens& data,uint64 guid);
         static uint32 GetUInt32ValueFromArray(Tokens const& data, uint16 index);
         static float  GetFloatValueFromArray(Tokens const& data, uint16 index);
@@ -1715,7 +1726,7 @@ class MANGOS_DLL_SPEC Player : public Unit
         void ApplySpellPowerBonus(int32 amount, bool apply);
         void UpdateSpellDamageAndHealingBonus();
 
-        void CalculateMinMaxDamage(WeaponAttackType attType, bool normalized, float& min_damage, float& max_damage);
+        void CalculateMinMaxDamage(WeaponAttackType attType, bool normalized, bool addTotalPct, float& min_damage, float& max_damage);
 
         void UpdateDefenseBonusesMod();
         void ApplyRatingMod(CombatRating cr, int32 value, bool apply);
@@ -2082,7 +2093,9 @@ class MANGOS_DLL_SPEC Player : public Unit
         /***                 VARIOUS SYSTEMS                   ***/
         /*********************************************************/
         MovementInfo m_movementInfo;
+        SafePosition m_safeposition;
         bool HasMovementFlag(MovementFlags f) const;        // for script access to m_movementInfo.HasMovementFlag
+
         void UpdateFallInformationIfNeed(MovementInfo const& minfo,uint16 opcode);
         Unit *m_mover;
         void SetFallInformation(uint32 time, float z)
@@ -2092,12 +2105,18 @@ class MANGOS_DLL_SPEC Player : public Unit
         }
         void HandleFall(MovementInfo const& movementInfo);
 
+        RedirectThreatMap* getRedirectThreatMap() { return &m_redirectMap; }
+
         void BuildTeleportAckMsg( WorldPacket *data, float x, float y, float z, float ang) const;
 
         bool isMoving() const { return m_movementInfo.HasMovementFlag(movementFlagsMask); }
         bool isMovingOrTurning() const { return m_movementInfo.HasMovementFlag(movementOrTurningFlagsMask); }
 
-        bool CanFly() const { return m_movementInfo.HasMovementFlag(MOVEMENTFLAG_CAN_FLY); }
+        uint32 Anti__GetLastTeleTime() const { return m_anti_TeleTime; }
+        void Anti__SetLastTeleTime(uint32 TeleTime) { m_anti_TeleTime=TeleTime; }
+        //bool CanFly() const { return m_movementInfo.HasMovementFlag(MOVEMENTFLAG_CAN_FLY); }
+        bool CanFly() const { return m_CanFly;  }
+        void SetCanFly(bool CanFly) { m_CanFly=CanFly; }
         bool IsFlying() const { return m_movementInfo.HasMovementFlag(MOVEMENTFLAG_FLYING); }
         bool IsKnowHowFlyIn(uint32 mapid, uint32 zone) const;
 
@@ -2196,6 +2215,10 @@ class MANGOS_DLL_SPEC Player : public Unit
         void SendRaidInfo();
         void SendSavedInstances();
         static void ConvertInstancesToGroup(Player *player, Group *group = NULL, uint64 player_guid = 0);
+
+        // last used pet number (for BG's)
+        uint32 GetLastPetNumber() const { return m_lastpetnumber; }
+        void SetLastPetNumber(uint32 petnumber) { m_lastpetnumber = petnumber; }
 
         /*********************************************************/
         /***                   GROUP SYSTEM                    ***/
@@ -2439,6 +2462,16 @@ class MANGOS_DLL_SPEC Player : public Unit
         RestType rest_type;
         ////////////////////Rest System/////////////////////
 
+        //movement anticheat
+        uint32 m_anti_lastmovetime;     //last movement time
+        float  m_anti_MovedLen;         //Length of traveled way
+        uint32 m_anti_NextLenCheck;
+        float  m_anti_BeginFallZ;    //alternative falling begin
+        uint32 m_anti_lastalarmtime;    //last time when alarm generated
+        uint32 m_anti_alarmcount;       //alarm counter
+        uint32 m_anti_TeleTime;
+        bool m_CanFly;
+
         // Transports
         Transport * m_transport;
 
@@ -2458,6 +2491,9 @@ class MANGOS_DLL_SPEC Player : public Unit
         uint64 m_auraUpdateMask;
 
         uint64 m_miniPet;
+
+        // last used pet number (for BG's)
+        uint32 m_lastpetnumber;
 
         // Player summoning
         time_t m_summon_expire;
@@ -2520,6 +2556,9 @@ class MANGOS_DLL_SPEC Player : public Unit
 
         AchievementMgr m_achievementMgr;
         ReputationMgr  m_reputationMgr;
+
+        // Map used to control threat redirection effects
+        RedirectThreatMap m_redirectMap;
 };
 
 void AddItemsSetItem(Player*player,Item *item);

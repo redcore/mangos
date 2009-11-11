@@ -255,7 +255,7 @@ bool Item::Create( uint32 guidlow, uint32 itemid, Player const* owner)
     SetUInt64Value(ITEM_FIELD_OWNER, owner ? owner->GetGUID() : 0);
     SetUInt64Value(ITEM_FIELD_CONTAINED, owner ? owner->GetGUID() : 0);
 
-    ItemPrototype const *itemProto = objmgr.GetItemPrototype(itemid);
+    ItemPrototype const *itemProto = ObjectMgr::GetItemPrototype(itemid);
     if(!itemProto)
         return false;
 
@@ -441,12 +441,12 @@ void Item::DeleteFromInventoryDB()
 
 ItemPrototype const *Item::GetProto() const
 {
-    return objmgr.GetItemPrototype(GetEntry());
+    return ObjectMgr::GetItemPrototype(GetEntry());
 }
 
 Player* Item::GetOwner()const
 {
-    return objmgr.GetPlayer(GetOwnerGUID());
+    return sObjectMgr.GetPlayer(GetOwnerGUID());
 }
 
 uint32 Item::GetSkill()
@@ -708,6 +708,9 @@ bool Item::IsEquipped() const
 
 bool Item::CanBeTraded(bool mail) const
 {
+    if(!mail && IsBoundAccountWide()) // Dirty hack, because trade window is closing
+        return false;
+
     if ((!mail || !IsBoundAccountWide()) && IsSoulBound())
         return false;
 
@@ -751,6 +754,20 @@ bool Item::IsFitToSpellRequirements(SpellEntry const* spellInfo) const
 {
     ItemPrototype const* proto = GetProto();
 
+    //Lava Lash
+    if (spellInfo->Id==60103 && spellInfo->EquippedItemClass==ITEM_CLASS_WEAPON)
+         return true;
+
+    // Enchant spells have only effect[0]
+    if(proto->IsVellum() && spellInfo->Effect[0] == SPELL_EFFECT_ENCHANT_ITEM && spellInfo->EffectItemType[0])
+    {
+        if(proto->SubClass == ITEM_SUBCLASS_WEAPON_ENCHANTMENT && spellInfo->EquippedItemClass == ITEM_CLASS_WEAPON)
+            return true;
+        else if(proto->SubClass == ITEM_SUBCLASS_ARMOR_ENCHANTMENT && spellInfo->EquippedItemClass == ITEM_CLASS_ARMOR)
+            return true;
+    }
+    // Vellum enchant case should ignore everything below
+
     if (spellInfo->EquippedItemClass != -1)                 // -1 == any item class
     {
         if(spellInfo->EquippedItemClass != int32(proto->Class))
@@ -774,7 +791,7 @@ bool Item::IsFitToSpellRequirements(SpellEntry const* spellInfo) const
 
 bool Item::IsTargetValidForItemUse(Unit* pUnitTarget)
 {
-    ItemRequiredTargetMapBounds bounds = objmgr.GetItemRequiredTargetMapBounds(GetProto()->ItemId);
+    ItemRequiredTargetMapBounds bounds = sObjectMgr.GetItemRequiredTargetMapBounds(GetProto()->ItemId);
 
     if (bounds.first == bounds.second)
         return true;
@@ -936,7 +953,7 @@ Item* Item::CreateItem( uint32 item, uint32 count, Player const* player )
     if ( count < 1 )
         return NULL;                                        //don't create item at zero count
 
-    ItemPrototype const *pProto = objmgr.GetItemPrototype( item );
+    ItemPrototype const *pProto = ObjectMgr::GetItemPrototype( item );
     if( pProto )
     {
         if ( count > pProto->GetMaxStackSize())
@@ -945,7 +962,7 @@ Item* Item::CreateItem( uint32 item, uint32 count, Player const* player )
         assert(count !=0 && "pProto->Stackable==0 but checked at loading already");
 
         Item *pItem = NewItemOrBag( pProto );
-        if( pItem->Create(objmgr.GenerateLowGuid(HIGHGUID_ITEM), item, player) )
+        if( pItem->Create(sObjectMgr.GenerateLowGuid(HIGHGUID_ITEM), item, player) )
         {
             pItem->SetCount( count );
             return pItem;
@@ -985,14 +1002,14 @@ bool Item::IsBindedNotWith( Player const* player ) const
         return true;
 
     // online
-    if(Player* owner = objmgr.GetPlayer(GetOwnerGUID()))
+    if(Player* owner = sObjectMgr.GetPlayer(GetOwnerGUID()))
     {
         return owner->GetSession()->GetAccountId() != player->GetSession()->GetAccountId();
     }
     // offline slow case
     else
     {
-        return objmgr.GetPlayerAccountIdByGUID(GetOwnerGUID()) != player->GetSession()->GetAccountId();
+        return sObjectMgr.GetPlayerAccountIdByGUID(GetOwnerGUID()) != player->GetSession()->GetAccountId();
     }
 }
 

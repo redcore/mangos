@@ -909,7 +909,7 @@ enum AuraState
     AURA_STATE_SWIFTMEND                    = 15,           //   T |
     AURA_STATE_DEADLY_POISON                = 16,           //   T |
     AURA_STATE_ENRAGE                       = 17,           // C   |
-    //AURA_STATE_UNKNOWN18                  = 18,           // C  t|
+    AURA_STATE_MECHANIC_BLEED               = 18,           // C  t|
     //AURA_STATE_UNKNOWN19                  = 19,           //     | not used
     //AURA_STATE_UNKNOWN20                  = 20,           //  c  | only (45317 Suicide)
     //AURA_STATE_UNKNOWN21                  = 21,           //     | not used
@@ -1098,7 +1098,7 @@ enum Targets
     TARGET_SELF2                       = 87,
     TARGET_DIRECTLY_FORWARD            = 89,
     TARGET_NONCOMBAT_PET               = 90,
-    TARGET_IN_FRONT_OF_CASTER_30       = 104,
+    TARGET_IN_FRONT_OF_CASTER_2        = 104,
 };
 
 enum SpellMissInfo
@@ -2459,10 +2459,15 @@ enum SummonType
     SUMMON_TYPE_UNKNOWN5    = 409,
     SUMMON_TYPE_UNKNOWN2    = 427,
     SUMMON_TYPE_POSESSED2   = 428,
+    SUMMON_TYPE_WILD2       = 429,
     SUMMON_TYPE_QUEST_CRITTER = 487,
     SUMMON_TYPE_QUEST_WILD  = 587,
+    SUMMON_TYPE_TOTEM2      = 647,
+    SUMMON_TYPE_GHOUL_OF_THE_DEAD = 687,
     SUMMON_TYPE_INFERNO     = 711,
     SUMMON_TYPE_GUARDIAN2   = 713,
+    SUMMON_TYPE_GHOUL       = 829,
+    SUMMON_TYPE_SCRAPBOT    = 832,
     SUMMON_TYPE_GUARDIAN3   = 1161,
     SUMMON_TYPE_CREATURE    = 1302,
     SUMMON_TYPE_ELEMENTAL   = 1561,
