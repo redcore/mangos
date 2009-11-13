@@ -151,18 +151,38 @@ else
 AC_MSG_RESULT($DO_MYSQL)
 fi
 
+## Check for memory allocator
+#  Use libc-malloc or libtbb-malloc?
+AC_MSG_CHECKING(whether to use libc malloc)
+MANGOSD_STD_MALLOC=no
+AC_ARG_WITH(std-malloc,
+[
+Memory allocation options:
+
+  --with-std-malloc       Use standard malloc],
+[
+    if test "$withval" = "yes" ; then
+        CFLAGS="-DUSE_STANDARD_MALLOC $CFLAGS"
+        CXXFLAGS="-DUSE_STANDARD_MALLOC $CXXFLAGS"
+        MANGOSD_STD_MALLOC=yes
+    elif test "$withval" != "no" ; then
+        AC_MSG_ERROR(Please choose yes or no)
+    fi
+])
+AC_MSG_RESULT($MANGOSD_STD_MALLOC)
+
 #  Include redcore specific flags for x64 compilation
 AC_MSG_CHECKING(whether to include redcore specific flags)
 RC_FLAGS=no
 AC_ARG_WITH(redcore,
 [
 Redcore options:
-
+ 
   --with-redcore       Include redcore flags],
 [
     if test "$withval" = "yes" ; then
-        CFLAGS="-m64 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -O2 -pipe -msse3 -fno-strength-reduce -fno-delete-null-pointer-checks -fno-strict-aliasing -frename-registers -DREDCORE $CFLAGS"
-        CXXFLAGS="-m64 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -O2 -pipe -msse3 -fno-strength-reduce -fno-delete-null-pointer-checks -fno-strict-aliasing -frename-registers -DREDCORE $CXXFLAGS"
+        CFLAGS="-march=native -m64 -mfpmath=sse -msse4.1 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -O2 -pipe -fno-strength-reduce -fno-delete-null-pointer-checks -fno-strict-aliasing -frename-registers -DREDCORE $CFLAGS"
+        CXXFLAGS="-march=native -m64 -mfpmath=sse -msse4.1 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -O2 -pipe -fno-strength-reduce -fno-delete-null-pointer-checks -fno-strict-aliasing -frename-registers -DREDCORE $CXXFLAGS"
         RC_FLAGS=yes
     elif test "$withval" != "no" ; then
         AC_MSG_ERROR(Please choose yes or no)
