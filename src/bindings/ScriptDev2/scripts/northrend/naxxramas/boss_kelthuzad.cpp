@@ -225,7 +225,7 @@ struct MANGOS_DLL_DECL boss_kelthuzadAI : public ScriptedAI
         DespawnSummons();
 
         Phase1_Timer = 150000;                              //Phase 1 lasts 5 minutes and 10 seconds
-        Phase1Encounter_Timer = 3000;
+        Phase1Encounter_Timer = 4000;
         SendSummon = false;
         Phase1 = false;
         Phase2 = false;
@@ -448,8 +448,8 @@ struct MANGOS_DLL_DECL boss_kelthuzadAI : public ScriptedAI
 						{	
                             pTemp->GetMotionMaster()->MovePoint(0, WALKX_MIDDLE, WALKY_MIDDLE, WALKZ_MIDDLE);
 							
-							pTemp->SetSpeed(MOVE_WALK, 0.5f);
-							pTemp->SetSpeed(MOVE_RUN, 0.5f);
+							pTemp->SetSpeed(MOVE_WALK, 0.3f);
+							pTemp->SetSpeed(MOVE_RUN, 0.3f);
 							pTemp->SetInCombatWithZone();
 						}
                     ++m_uiSendSummon;

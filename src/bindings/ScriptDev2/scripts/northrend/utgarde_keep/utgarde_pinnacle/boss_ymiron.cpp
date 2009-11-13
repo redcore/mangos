@@ -149,6 +149,7 @@ struct MANGOS_DLL_DECL boss_ymironAI : public ScriptedAI
 
     void Reset()
     {
+		m_bIsWalking = false;
         m_bIsPause = false;
         m_bIsActiveWithBJORN = false;
         m_bIsActiveWithHALDOR = false;
@@ -226,9 +227,10 @@ struct MANGOS_DLL_DECL boss_ymironAI : public ScriptedAI
     void JustDied(Unit* pKiller)
     {
         DoScriptText(SAY_DEATH, m_creature);
-
-        DespawnBoatGhosts(m_uiActivedCreatureGUID);
-        DespawnBoatGhosts(m_uiOrbGUID);
+		if (m_uiActivedCreatureGUID)
+			DespawnBoatGhosts(m_uiActivedCreatureGUID);
+		if (m_uiOrbGUID)
+			DespawnBoatGhosts(m_uiOrbGUID);
 		if(pSpirit)
 			pSpirit->DealDamage(pSpirit, pSpirit->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
         if(m_pInstance)

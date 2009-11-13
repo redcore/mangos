@@ -75,14 +75,14 @@ struct MANGOS_DLL_DECL boss_sapphironAI : public ScriptedAI
     {
         FrostAura_Timer = 2000;
         FrostBreath_Timer = 2500;
-        LifeDrain_Timer = 24000;
-        Blizzard_Timer = 20000;
+        LifeDrain_Timer = 20000;
+        Blizzard_Timer = 17000;
         Fly_Timer = 45000;
-        Icebolt_Timer = 4000;
+        Icebolt_Timer = 3000;
         land_Timer = 2000;
         Beserk_Timer = 900000;
-        m_uiCleaveTimer = 7000;
-        m_uiTailSweepTimer = 20000;
+        m_uiCleaveTimer = 5000;
+        m_uiTailSweepTimer = 17000;
         phase = 1;
         Icebolt_Count = 0;
         landoff = false;
@@ -113,9 +113,16 @@ struct MANGOS_DLL_DECL boss_sapphironAI : public ScriptedAI
             {
                 if (m_pInstance->GetData(TYPE_SAPPHIRON) == NOT_STARTED)
                 {
-                   if (m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE))
-                       m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-                    
+                    if (m_pInstance->GetData(TYPE_FOUR_HORSEMEN) == DONE)
+                    {
+                        if (m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE))
+                            m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                    }
+                    else
+                    {
+                        if (!m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE))
+                            m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                    }
                 }
             }
         }
