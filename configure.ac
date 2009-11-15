@@ -151,7 +151,6 @@ else
 AC_MSG_RESULT($DO_MYSQL)
 fi
 
-<<<<<<< HEAD:configure.ac
 #  Include redcore specific flags for x64 compilation
 AC_MSG_CHECKING(whether to include redcore specific flags)
 RC_FLAGS=no
