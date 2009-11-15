@@ -3082,11 +3082,7 @@ void Spell::DoCreateItem(uint32 i, uint32 itemtype)
 
         // send info to the client
         if(pItem)
-        {
-            if(Item* ItemTarget = m_targets.getItemTarget())
-                player->DestroyItemCount(ItemTarget->GetEntry(), 1, true);
             player->SendNewItem(pItem, num_to_add, true, bgType == 0);
-        }
 
         // we succeeded in creating at least one item, so a levelup is possible
         if(bgType == 0)
@@ -3624,6 +3620,7 @@ void Spell::EffectSummonType(uint32 i)
         case SUMMON_TYPE_WILD2:
         case SUMMON_TYPE_QUEST_WILD:
         case SUMMON_TYPE_CREATURE:
+        case SUMMON_TYPE_JEEVES:
         case SUMMON_TYPE_SCRAPBOT:
             EffectSummonWild(i);
             return;
@@ -4390,11 +4387,6 @@ void Spell::EffectEnchantItemPerm(uint32 effect_idx)
     if (!itemTarget)
         return;
 
-    Player* p_caster = (Player*)m_caster;
-
-    // not grow at item use at item case
-    p_caster->UpdateCraftSkill(m_spellInfo->Id);
-
     uint32 enchant_id = m_spellInfo->EffectMiscValue[effect_idx];
     if (!enchant_id)
         return;
@@ -4407,6 +4399,25 @@ void Spell::EffectEnchantItemPerm(uint32 effect_idx)
     Player* item_owner = itemTarget->GetOwner();
     if (!item_owner)
         return;
+
+    Player* p_caster = (Player*)m_caster;
+
+    // Enchanting a vellum requires special handling, as it creates a new item
+    // instead of modifying an existing one.
+    ItemPrototype const* targetProto = itemTarget->GetProto();
+    if(targetProto->IsVellum() && m_spellInfo->EffectItemType[effect_idx])
+    {
+        unitTarget = m_caster;
+        DoCreateItem(effect_idx,m_spellInfo->EffectItemType[effect_idx]);
+        // Vellum target case: Target becomes additional reagent, new scroll item created instead in Spell::EffectEnchantItemPerm()
+        // cannot already delete in TakeReagents() unfortunately
+        p_caster->DestroyItemCount(targetProto->ItemId, 1, true);
+        return;
+    }
+
+    // not grow at item use at item case, using scrolls does not increase enchanting skill!
+    if (!(m_CastItem && m_CastItem->GetProto()->Flags & ITEM_FLAGS_ENCHANT_SCROLL))
+        p_caster->UpdateCraftSkill(m_spellInfo->Id);
 
     if (item_owner!=p_caster && p_caster->GetSession()->GetSecurity() > SEC_PLAYER && sWorld.getConfig(CONFIG_GM_LOG_TRADE) )
     {
@@ -4592,14 +4603,6 @@ void Spell::EffectEnchantItemTmp(uint32 i)
     Player* item_owner = itemTarget->GetOwner();
     if(!item_owner)
         return;
-
-    ItemPrototype const* targetProto = itemTarget->GetProto();
-    if(m_spellInfo->EffectItemType[i] && targetProto->IsVellum())
-    {
-        unitTarget = m_caster;
-        DoCreateItem(i,m_spellInfo->EffectItemType[i]);
-        return;
-    }
 
     if(item_owner!=p_caster && p_caster->GetSession()->GetSecurity() > SEC_PLAYER && sWorld.getConfig(CONFIG_GM_LOG_TRADE) )
     {

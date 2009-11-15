@@ -7568,6 +7568,13 @@ bool Unit::HandleProcTriggerSpell(Unit *pVictim, uint32 damage, Aura* triggeredB
 
             break;
         }
+        // Blessing of Ancient Kings
+        case 64411:
+        {
+            trigger_spell_id = 64413;
+            basepoints[0] = int32(damage * 0.15f);
+            break;
+        }
     }
     // Blade Barrier
     if (auraSpellInfo->SpellFamilyName == SPELLFAMILY_DEATHKNIGHT && auraSpellInfo->SpellIconID == 85)
@@ -8569,7 +8576,7 @@ Pet* Unit::GetPet() const
 
 Unit* Unit::GetCharm() const
 {
-    if(uint64 charm_guid = GetCharmGUID())
+    if (uint64 charm_guid = GetCharmGUID())
     {
         if(Unit* pet = ObjectAccessor::GetUnit(*this, charm_guid))
             return pet;
@@ -8579,6 +8586,15 @@ Unit* Unit::GetCharm() const
     }
 
     return NULL;
+}
+
+void Unit::Uncharm()
+{
+    if (Unit* charm = GetCharm())
+    {
+        charm->RemoveSpellsCausingAura(SPELL_AURA_MOD_CHARM);
+        charm->RemoveSpellsCausingAura(SPELL_AURA_MOD_POSSESS);
+    }
 }
 
 float Unit::GetCombatDistance( const Unit* target ) const
@@ -11931,8 +11947,11 @@ void Unit::RemoveFromWorld()
     // cleanup
     if(IsInWorld())
     {
+        Uncharm();
         RemoveNotOwnSingleTargetAuras();
         RemoveGuardians();
+        RemoveAllGameObjects();
+        RemoveAllDynObjects();
     }
 
     Object::RemoveFromWorld();
@@ -11950,8 +11969,6 @@ void Unit::CleanupsBeforeDelete()
         DeleteThreatList();
         getHostileRefManager().setOnlineOfflineState(false);
         RemoveAllAuras(AURA_REMOVE_BY_DELETE);
-        RemoveAllGameObjects();
-        RemoveAllDynObjects();
         GetMotionMaster()->Clear(false);                    // remove different non-standard movement generators.
     }
     WorldObject::CleanupsBeforeDelete();

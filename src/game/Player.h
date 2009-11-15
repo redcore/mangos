@@ -1143,7 +1143,6 @@ class MANGOS_DLL_SPEC Player : public Unit
         void RemoveMiniPet();
         Pet* GetMiniPet();
         void SetMiniPet(Pet* pet) { m_miniPet = pet->GetGUID(); }
-        void Uncharm();
         uint32 GetPhaseMaskForSpawn() const;                // used for proper set phase for DB at GM-mode creature/GO spawn
 
         void Say(const std::string& text, const uint32 language);
@@ -1668,6 +1667,7 @@ class MANGOS_DLL_SPEC Player : public Unit
             m_cinematic = cine;
         }
 
+        static bool IsActionButtonDataValid(uint8 button, uint32 action, uint8 type, Player* player);
         ActionButton* addActionButton(uint8 button, uint32 action, uint8 type);
         void removeActionButton(uint8 button);
         void SendInitialActionButtons() const { SendActionButtons(0); }
