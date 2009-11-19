@@ -203,7 +203,7 @@ void SpellCastTargets::Update(Unit* caster)
     }
 }
 
-bool SpellCastTargets::read ( WorldPacket * data, Unit *caster )
+bool SpellCastTargets::read ( WorldPacket * data, Unit *caster, SpellEntry const* spell )
 {
     if(data->rpos() + 4 > data->size())
         return false;
@@ -215,8 +215,20 @@ bool SpellCastTargets::read ( WorldPacket * data, Unit *caster )
         m_destX = caster->GetPositionX();
         m_destY = caster->GetPositionY();
         m_destZ = caster->GetPositionZ();
-        m_unitTarget = caster;
-        m_unitTargetGUID = caster->GetGUID();
+        bool skiptarget = false;
+        if(spell)
+        {
+            for(int j=0;j<3;j++)
+            {
+                // this is requiered, otherwise it will return SPELL_FAILED_BAD_TARGETS
+                skiptarget |= (spell->EffectImplicitTargetA[j] == TARGET_IN_FRONT_OF_CASTER || spell->EffectImplicitTargetA[j] == TARGET_SCRIPT || spell->EffectImplicitTargetA[j] == TARGET_EFFECT_SELECT);
+            }
+        }
+        if(!skiptarget)
+        {
+            m_unitTarget = caster;
+            m_unitTargetGUID = caster->GetGUID();
+        }
         return true;
     }
 
@@ -1467,10 +1479,15 @@ void Spell::SetTargetMap(uint32 effIndex,uint32 targetMode,UnitList& TagUnitMap)
         case TARGET_TOTEM_FIRE:
         case TARGET_SELF:
         case TARGET_SELF2:
-        case TARGET_AREAEFFECT_CUSTOM_2:
         case TARGET_SUMMON:
             TagUnitMap.push_back(m_caster);
             break;
+        case TARGET_AREAEFFECT_CUSTOM_2:
+        {
+            // used for targeting gameobjects
+            TagUnitMap.push_back(m_caster);
+            break;
+        }
         case TARGET_AREAEFFECT_CUSTOM:
         {
             switch (m_spellInfo->SpellFamilyName)
@@ -1948,6 +1965,12 @@ void Spell::SetTargetMap(uint32 effIndex,uint32 targetMode,UnitList& TagUnitMap)
         }
         case TARGET_DUELVSPLAYER:
         {
+            if (m_spellInfo->SpellFamilyName == SPELLFAMILY_SHAMAN && m_spellInfo->SpellIconID == 276) // Stoneclaw Totem absorb has wrong target
+            {
+                TagUnitMap.push_back(m_caster);
+                break;
+            }
+
             Unit *target = m_targets.getUnitTarget();
             if(target)
             {
@@ -2677,6 +2700,21 @@ void Spell::cast(bool skipCheck)
                 AddPrecastSpell(23230);                     // Blood Fury - Healing Reduction
             else if(m_spellInfo->Id == 20594)               // Stoneskin
                 AddTriggeredSpell(65116);                   // Stoneskin - armor 10% for 8 sec
+
+            switch(m_spellInfo->Id)                         
+            {
+                case 5728: AddTriggeredSpell(55328); break;// Stoneclaw Totem, rank 1
+                case 6397: AddTriggeredSpell(55329); break;// Stoneclaw Totem, rank 2
+                case 6398: AddTriggeredSpell(55330); break;// Stoneclaw Totem, rank 3
+                case 6399: AddTriggeredSpell(55332); break;// Stoneclaw Totem, rank 4
+                case 10425: AddTriggeredSpell(55333); break;// Stoneclaw Totem, rank 5
+                case 10426: AddTriggeredSpell(55335); break;// Stoneclaw Totem, rank 6
+                case 25513: AddTriggeredSpell(55278); break;// Stoneclaw Totem, rank 7
+                case 58583: AddTriggeredSpell(58589); break;// Stoneclaw Totem, rank 8
+                case 58584: AddTriggeredSpell(58590); break;// Stoneclaw Totem, rank 9
+                case 58585: AddTriggeredSpell(58591); break;// Stoneclaw Totem, rank 10
+                default:break;
+            }
             break;
         }
         case SPELLFAMILY_MAGE:
@@ -2776,6 +2814,12 @@ void Spell::cast(bool skipCheck)
     }
 
     FillTargetMap();
+
+    // let not attack nearby enemies when Seal of Command is triggered by Divine Storm
+    if (m_spellInfo->Id == 20424)
+        if (m_caster->FindCurrentSpellBySpellId(53385))
+            for (int numTargets = m_UniqueTargetInfo.size(); numTargets > 1; numTargets--)
+                m_UniqueTargetInfo.pop_back();
 
     if(m_spellState == SPELL_STATE_FINISHED)                // stop cast if spell marked as finish somewhere in FillTargetMap
     {
@@ -3932,7 +3976,7 @@ void Spell::TakeReagents()
     if (p_caster->CanNoReagentCast(m_spellInfo))
         return;
 
-    // Vellum case, m_CastItem is consumable -> removed on use, vellum is deleted in DoCreateItem
+    // Scroll case, reagents already taken on scroll creation; scoll itself destroyed in TakeCastItem()
     if(m_CastItem && m_CastItem->GetProto()->Flags & ITEM_FLAGS_ENCHANT_SCROLL)
         return;
 
@@ -4330,11 +4374,16 @@ SpellCastResult Spell::CheckCast(bool strict)
         return locRes;
 
     // not let players cast spells at mount (and let do it to creatures)
-    if (m_caster->IsMounted() && m_caster->GetTypeId()==TYPEID_PLAYER && !m_IsTriggeredSpell &&
+    if ((m_caster->IsMounted() || m_caster->GetVehicleGUID()) && m_caster->GetTypeId()==TYPEID_PLAYER && !m_IsTriggeredSpell &&
         !IsPassiveSpell(m_spellInfo->Id) && !(m_spellInfo->Attributes & SPELL_ATTR_CASTABLE_WHILE_MOUNTED))
     {
         if (m_caster->isInFlight())
-            return SPELL_FAILED_NOT_ON_TAXI;
+            return SPELL_FAILED_NOT_FLYING;
+        else if(m_caster->GetVehicleGUID())
+        {
+            if(!(m_caster->m_SeatData.s_flags & SF_CAN_CAST))
+                return SPELL_FAILED_NOT_MOUNTED;
+        }
         else
             return SPELL_FAILED_NOT_MOUNTED;
     }
@@ -4881,32 +4930,6 @@ SpellCastResult Spell::CheckCast(bool strict)
                     return SPELL_FAILED_BAD_TARGETS;
                 break;
             }
-            case SPELL_EFFECT_ENCHANT_ITEM:
-            {
-                if(Item* Target = m_targets.getItemTarget())
-                {
-                    // Check cheating case
-                    if(!Target->IsFitToSpellRequirements(m_spellInfo))
-                        return SPELL_FAILED_BAD_TARGETS;
-
-                    // Do not enchant vellum with scroll
-                    if(m_CastItem && m_CastItem->GetProto()->Flags & ITEM_FLAGS_ENCHANT_SCROLL && Target->GetProto()->IsVellum())
-                        return SPELL_FAILED_BAD_TARGETS;
-
-                    // Check if we can store a new scroll
-                    if(Target->GetProto()->IsVellum() && m_spellInfo->EffectItemType[i])
-                    {
-                         ItemPosCountVec dest;
-                         uint8 msg = ((Player*)m_caster)->CanStoreNewItem( NULL_BAG, NULL_SLOT, dest, m_spellInfo->EffectItemType[i], 1 );
-                         if(msg != EQUIP_ERR_OK)
-                         {
-                            ((Player*)m_caster)->SendEquipError( msg, NULL, NULL );
-                            return SPELL_FAILED_DONT_REPORT;
-                         }
-                    }
-                }
-                break;
-            }
             default:break;
         }
     }
@@ -5134,7 +5157,7 @@ SpellCastResult Spell::CheckPetCast(Unit* target)
                                                             //TARGET_DUELVSPLAYER is positive AND negative
                     duelvsplayertar |= (m_spellInfo->EffectImplicitTargetA[j] == TARGET_DUELVSPLAYER);
                 }
-                if(m_caster->IsFriendlyTo(target) && !duelvsplayertar)
+                if(m_caster->IsFriendlyTo(_target) && !duelvsplayertar)
                 {
                     return SPELL_FAILED_BAD_TARGETS;
                 }
@@ -5145,6 +5168,7 @@ SpellCastResult Spell::CheckPetCast(Unit* target)
             return SPELL_FAILED_NOT_READY;
     }
 
+    // NOTE : this is done twice, also in spell->prepare(&(spell->m_targets));
     return CheckCast(true);
 }
 
@@ -5475,6 +5499,8 @@ SpellCastResult Spell::CheckItems()
         return SPELL_CAST_OK;
 
     Player* p_caster = (Player*)m_caster;
+    bool isScrollItem = false;
+    bool isVellumTarget = false;
 
     // cast item checks
     if(m_CastItem)
@@ -5486,6 +5512,8 @@ SpellCastResult Spell::CheckItems()
         ItemPrototype const *proto = m_CastItem->GetProto();
         if(!proto)
             return SPELL_FAILED_ITEM_NOT_READY;
+
+        if(proto->Flags & ITEM_FLAGS_ENCHANT_SCROLL) isScrollItem = true;
 
         for (int i = 0; i < 5; ++i)
             if (proto->Spells[i].SpellCharges)
@@ -5553,8 +5581,13 @@ SpellCastResult Spell::CheckItems()
         if(!m_targets.getItemTarget())
             return SPELL_FAILED_ITEM_GONE;
 
+        isVellumTarget = m_targets.getItemTarget()->GetProto()->IsVellum();
         if(!m_targets.getItemTarget()->IsFitToSpellRequirements(m_spellInfo))
             return SPELL_FAILED_EQUIPPED_ITEM_CLASS;
+
+            // Do not enchant vellum with scroll
+        if(isVellumTarget && isScrollItem)
+            return SPELL_FAILED_BAD_TARGETS;
     }
     // if not item target then required item must be equipped
     else
@@ -5585,8 +5618,9 @@ SpellCastResult Spell::CheckItems()
         focusObject = ok;                                   // game object found in range
     }
 
-    // check reagents (ignore triggered spells with reagents processed by original spell) and special reagent ignore case.
-    if (!m_IsTriggeredSpell && !p_caster->CanNoReagentCast(m_spellInfo))
+    // check reagents (ignore triggered spells with reagents processed by original spell) and special reagent ignore case,
+    // including enchanted scrolls
+    if (!m_IsTriggeredSpell && !p_caster->CanNoReagentCast(m_spellInfo) && !isScrollItem)
     {
         for(uint32 i = 0; i < 8; ++i)
         {
@@ -5596,17 +5630,12 @@ SpellCastResult Spell::CheckItems()
             uint32 itemid    = m_spellInfo->Reagent[i];
             uint32 itemcount = m_spellInfo->ReagentCount[i];
 
-            // If item is a scroll enchant we don't need reagents
-            if(m_CastItem && m_CastItem->GetProto()->Flags & ITEM_FLAGS_ENCHANT_SCROLL)
-                break;
-
             // if CastItem is also spell reagent
             if( m_CastItem && m_CastItem->GetEntry() == itemid )
             {
                 ItemPrototype const *proto = m_CastItem->GetProto();
                 if(!proto)
                     return SPELL_FAILED_ITEM_NOT_READY;
-
                 for(int s = 0; s < MAX_ITEM_PROTO_SPELLS; ++s)
                 {
                     // CastItem will be used up and does not count as reagent
@@ -5642,25 +5671,23 @@ SpellCastResult Spell::CheckItems()
 
     // Check items for TotemCategory  (items presence in inventory)
     uint32 TotemCategory = 2;
-    for(int i= 0; i < 2; ++i)
+    // scrolls don't need tools to apply enchant, unlike normal enchant spell that is also used to create scrolls
+    if(isScrollItem) TotemCategory = 0;
+    else
     {
-        // Skip for scroll enchant case
-        if(m_CastItem && m_CastItem->GetProto()->Flags & ITEM_FLAGS_ENCHANT_SCROLL)
+        for(int i= 0; i < 2; ++i)
         {
-            TotemCategory = 0;
-            break;
-        }
-
-        if(m_spellInfo->TotemCategory[i] != 0)
-        {
-            if( p_caster->HasItemTotemCategory(m_spellInfo->TotemCategory[i]) )
+            if(m_spellInfo->TotemCategory[i] != 0)
             {
-                TotemCategory -= 1;
-                continue;
+                if( p_caster->HasItemTotemCategory(m_spellInfo->TotemCategory[i]) )
+                {
+                    TotemCategory -= 1;
+                    continue;
+                }
             }
+            else
+                TotemCategory -= 1;
         }
-        else
-            TotemCategory -= 1;
     }
     if(TotemCategory != 0)
         return SPELL_FAILED_TOTEM_CATEGORY;                 //0x7B
@@ -5693,6 +5720,17 @@ SpellCastResult Spell::CheckItems()
 
                 if( targetItem->GetProto()->ItemLevel < m_spellInfo->baseLevel )
                     return SPELL_FAILED_LOWLEVEL;
+                // Check if we can store a new scroll, enchanting vellum has implicit SPELL_EFFECT_CREATE_ITEM
+                if(isVellumTarget && m_spellInfo->EffectItemType[i])
+                {
+                    ItemPosCountVec dest;
+                    uint8 msg = p_caster->CanStoreNewItem( NULL_BAG, NULL_SLOT, dest, m_spellInfo->EffectItemType[i], 1 );
+                    if(msg != EQUIP_ERR_OK)
+                    {
+                        p_caster->SendEquipError( msg, NULL, NULL );
+                        return SPELL_FAILED_DONT_REPORT;
+                    }
+                }
                 // Not allow enchant in trade slot for some enchant type
                 if( targetItem->GetOwner() != m_caster )
                 {
@@ -5702,6 +5740,9 @@ SpellCastResult Spell::CheckItems()
                         return SPELL_FAILED_ERROR;
                     if (pEnchant->slot & ENCHANTMENT_CAN_SOULBOUND)
                         return SPELL_FAILED_NOT_TRADEABLE;
+                    // cannot replace vellum with scroll in trade slot
+                    if (isVellumTarget)
+                        return SPELL_FAILED_BAD_TARGETS;
                 }
                 break;
             }
@@ -6051,7 +6092,8 @@ bool Spell::CheckTarget( Unit* target, uint32 eff )
         // in case TARGET_SCRIPT target selected by server always and can't be cheated
         if( target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE) &&
             m_spellInfo->EffectImplicitTargetA[eff] != TARGET_SCRIPT &&
-            m_spellInfo->EffectImplicitTargetB[eff] != TARGET_SCRIPT )
+            m_spellInfo->EffectImplicitTargetB[eff] != TARGET_SCRIPT &&
+            m_spellInfo->EffectImplicitTargetA[eff] != TARGET_MASTER )
             return false;
     }
 

@@ -54,6 +54,7 @@
 #include "ScriptCalls.h"
 #include "SkillDiscovery.h"
 #include "Formulas.h"
+#include "Vehicle.h"
 
 pEffect SpellEffects[TOTAL_SPELL_EFFECTS]=
 {
@@ -144,7 +145,7 @@ pEffect SpellEffects[TOTAL_SPELL_EFFECTS]=
     &Spell::EffectStuck,                                    // 84 SPELL_EFFECT_STUCK
     &Spell::EffectSummonPlayer,                             // 85 SPELL_EFFECT_SUMMON_PLAYER
     &Spell::EffectActivateObject,                           // 86 SPELL_EFFECT_ACTIVATE_OBJECT
-    &Spell::EffectUnused,                                   // 87 SPELL_EFFECT_WMO_DAMAGE
+    &Spell::EffectDamageBuilding,                           // 87 SPELL_EFFECT_WMO_DAMAGE
     &Spell::EffectUnused,                                   // 88 SPELL_EFFECT_WMO_REPAIR
     &Spell::EffectUnused,                                   // 89 SPELL_EFFECT_WMO_CHANGE
     &Spell::EffectKillCreditPersonal,                       // 90 SPELL_EFFECT_KILL_CREDIT              Kill credit but only for single person
@@ -218,8 +219,8 @@ pEffect SpellEffects[TOTAL_SPELL_EFFECTS]=
     &Spell::EffectMilling,                                  //158 SPELL_EFFECT_MILLING                  milling
     &Spell::EffectRenamePet,                                //159 SPELL_EFFECT_ALLOW_RENAME_PET         allow rename pet once again
     &Spell::EffectNULL,                                     //160 SPELL_EFFECT_160                      unused
-    &Spell::EffectNULL,                                     //161 SPELL_EFFECT_TALENT_SPEC_COUNT        second talent spec (learn/revert)
-    &Spell::EffectNULL,                                     //162 SPELL_EFFECT_TALENT_SPEC_SELECT       activate primary/secondary spec
+    &Spell::EffectSpecCount,                                //161 SPELL_EFFECT_TALENT_SPEC_COUNT        second talent spec (learn/revert)
+    &Spell::EffectActivateSpec,                             //162 SPELL_EFFECT_TALENT_SPEC_SELECT       activate primary/secondary spec
 };
 
 void Spell::EffectNULL(uint32 /*i*/)
@@ -3089,11 +3090,7 @@ void Spell::DoCreateItem(uint32 i, uint32 itemtype)
 
         // send info to the client
         if(pItem)
-        {
-            if(Item* ItemTarget = m_targets.getItemTarget())
-                player->DestroyItemCount(ItemTarget->GetEntry(), 1, true);
             player->SendNewItem(pItem, num_to_add, true, bgType == 0);
-        }
 
         // we succeeded in creating at least one item, so a levelup is possible
         if(bgType == 0)
@@ -3618,6 +3615,7 @@ void Spell::EffectSummonType(uint32 i)
         case SUMMON_TYPE_POSESSED2:
         case SUMMON_TYPE_FORCE_OF_NATURE:
         case SUMMON_TYPE_GUARDIAN2:
+        case SUMMON_TYPE_RUNE_BLADE:
         case SUMMON_TYPE_GUARDIAN3:
         case SUMMON_TYPE_GHOUL:
         case SUMMON_TYPE_GHOUL_OF_THE_DEAD:
@@ -3626,28 +3624,29 @@ void Spell::EffectSummonType(uint32 i)
                 EffectSummonTotem(i);
             else
                 EffectSummonGuardian(i);
-            break;
+            return;
         case SUMMON_TYPE_WILD:
         case SUMMON_TYPE_WILD2:
         case SUMMON_TYPE_QUEST_WILD:
         case SUMMON_TYPE_CREATURE:
+        case SUMMON_TYPE_JEEVES:
         case SUMMON_TYPE_SCRAPBOT:
             EffectSummonWild(i);
-            break;
+            return;
         case SUMMON_TYPE_DEMON:
         case SUMMON_TYPE_INFERNO:
             EffectSummonDemon(i);
-            break;
+            return;
         case SUMMON_TYPE_SUMMON:
         case SUMMON_TYPE_ELEMENTAL:
             EffectSummon(i);
-            break;
+            return;
         case SUMMON_TYPE_CRITTER:
         case SUMMON_TYPE_CRITTER2:
         case SUMMON_TYPE_CRITTER3:
         case SUMMON_TYPE_QUEST_CRITTER:
             EffectSummonCritter(i);
-            break;
+            return;
         case SUMMON_TYPE_TOTEM_SLOT1:
         case SUMMON_TYPE_TOTEM_SLOT2:
         case SUMMON_TYPE_TOTEM_SLOT3:
@@ -3655,7 +3654,22 @@ void Spell::EffectSummonType(uint32 i)
         case SUMMON_TYPE_TOTEM:
         case SUMMON_TYPE_TOTEM2:
             EffectSummonTotem(i);
-            break;
+            return;
+        case SUMMON_TYPE_VEHICLE1:
+        case SUMMON_TYPE_VEHICLE2:
+        case SUMMON_TYPE_VEHICLE3:
+        case SUMMON_TYPE_VEHICLE4:
+        case SUMMON_TYPE_VEHICLE5:
+        case SUMMON_TYPE_VEHICLE6:
+        case SUMMON_TYPE_VEHICLE7:
+        case SUMMON_TYPE_VEHICLE8:
+        case SUMMON_TYPE_VEHICLE9:
+        case SUMMON_TYPE_VEHICLE10:
+        case SUMMON_TYPE_VEHICLE11:
+        case SUMMON_TYPE_VEHICLE12:
+        case SUMMON_TYPE_VEHICLE13:
+            EffectSummonVehicle(i);
+            return;
         case SUMMON_TYPE_UNKNOWN1:
         case SUMMON_TYPE_UNKNOWN2:
         case SUMMON_TYPE_UNKNOWN3:
@@ -3666,6 +3680,57 @@ void Spell::EffectSummonType(uint32 i)
             sLog.outError("EffectSummonType: Unhandled summon type %u", m_spellInfo->EffectMiscValueB[i]);
             break;
     }
+
+    SummonPropertiesEntry const *properties = sSummonPropertiesStore.LookupEntry(m_spellInfo->EffectMiscValueB[i]);
+    if(!properties)
+    {
+        sLog.outError("EffectSummonType: Unknow summon properties %u", m_spellInfo->EffectMiscValueB[i]);
+        return;
+    }
+
+    // more generic way, but incorrect in some cases
+    switch(properties->Group)
+    {
+        case SUMMON_CATEGORY_WILD:
+            EffectSummonWild(i);
+            break;
+        case SUMMON_CATEGORY_PET:
+            switch(properties->Type)
+            {
+                case SUMMON_MASK_SUMMON:
+                    EffectSummon(i);
+                    break;
+                default:
+                    EffectSummonGuardian(i);
+                    break;
+            }
+            break;
+        case SUMMON_CATEGORY_ALLY:
+        case SUMMON_CATEGORY_POSSESSED:
+            switch(properties->Type)
+            {
+                case SUMMON_MASK_NONE:
+                    EffectSummonWild(i);
+                    break;
+                case SUMMON_MASK_TOTEM:
+                    EffectSummonTotem(i);
+                    break;
+                case (SUMMON_MASK_SUMMON | SUMMON_MASK_TOTEM):
+                    EffectSummonCritter(i);
+                    break;
+                default:
+                    EffectSummonGuardian(i);
+                    break;
+            }
+            break;
+        case SUMMON_CATEGORY_VEHICLE:
+            // probably more types of vehicles here
+            EffectSummonVehicle(i);
+            break;
+        default:
+            break;
+   }
+
 }
 
 void Spell::EffectSummon(uint32 i)
@@ -4084,6 +4149,70 @@ void Spell::EffectSummonWild(uint32 i)
     }
 }
 
+void Spell::EffectSummonPosessed(uint32 i)
+{
+    uint32 creature_entry = m_spellInfo->EffectMiscValue[i];
+    if(!creature_entry)
+        return;
+
+    // set timer for unsummon
+    int32 duration = GetSpellDuration(m_spellInfo);
+
+    // in another case summon new
+    uint32 level = m_caster->getLevel();
+
+    float px, py, pz;
+    // If dest location if present
+    if (m_targets.m_targetMask & TARGET_FLAG_DEST_LOCATION)
+    {
+        // Summon 1 unit in dest location
+        px = m_targets.m_destX;
+        py = m_targets.m_destY;
+        pz = m_targets.m_destZ;
+    }
+    // Summon if dest location not present near caster
+    else
+        m_caster->GetClosePoint(px,py,pz,1.0f);
+
+    TempSummonType summonType = (duration == 0) ? TEMPSUMMON_DEAD_DESPAWN : TEMPSUMMON_TIMED_OR_DEAD_DESPAWN;
+
+    Creature *spawnCreature = m_caster->SummonCreature(creature_entry,px,py,pz,m_caster->GetOrientation(),summonType,duration);
+    //spawnCreature->Relocate(px,py,pz,m_caster->GetOrientation());
+
+    if(!spawnCreature->IsPositionValid())
+    {
+        sLog.outError("Pet (guidlow %d, entry %d) not created base at creature. Suggested coordinates isn't valid (X: %f Y: %f)",
+        spawnCreature->GetGUIDLow(), spawnCreature->GetEntry(), spawnCreature->GetPositionX(), spawnCreature->GetPositionY());
+        delete spawnCreature;
+        return;
+    }
+
+    spawnCreature->SetCharmerGUID(m_caster->GetGUID());
+    spawnCreature->SetCreatorGUID(m_caster->GetGUID());
+
+    if(m_caster->GetTypeId()==TYPEID_PLAYER)
+    {
+        ((Player*)m_caster)->SetCharm(spawnCreature);
+        ((Player*)m_caster)->SetFarSightGUID(spawnCreature->GetGUID());
+        ((Player*)m_caster)->SetClientControl(spawnCreature, 1);
+    }
+
+    spawnCreature->SetUInt32Value(UNIT_FIELD_FACTIONTEMPLATE,m_caster->getFaction());
+    spawnCreature->SetUInt32Value(UNIT_FIELD_FLAGS,16777224);
+    spawnCreature->SetUInt32Value(UNIT_FIELD_FLAGS_2,162048);
+    spawnCreature->SetUInt32Value(UNIT_FIELD_BYTES_2,1);
+    spawnCreature->SetUInt32Value(UNIT_CREATED_BY_SPELL, m_spellInfo->Id);
+
+    //spawnCreature->AIM_Initialize();
+
+    if(CharmInfo *charmInfo = spawnCreature->InitCharmInfo(spawnCreature))
+        charmInfo->InitPossessCreateSpells();
+
+    if(m_caster->GetTypeId()==TYPEID_PLAYER)
+        ((Player*)m_caster)->PossessSpellInitialize();
+
+}
+
 void Spell::EffectSummonGuardian(uint32 i)
 {
     uint32 pet_entry = m_spellInfo->EffectMiscValue[i];
@@ -4267,11 +4396,6 @@ void Spell::EffectEnchantItemPerm(uint32 effect_idx)
     if (!itemTarget)
         return;
 
-    Player* p_caster = (Player*)m_caster;
-
-    // not grow at item use at item case
-    p_caster->UpdateCraftSkill(m_spellInfo->Id);
-
     uint32 enchant_id = m_spellInfo->EffectMiscValue[effect_idx];
     if (!enchant_id)
         return;
@@ -4284,6 +4408,25 @@ void Spell::EffectEnchantItemPerm(uint32 effect_idx)
     Player* item_owner = itemTarget->GetOwner();
     if (!item_owner)
         return;
+
+    Player* p_caster = (Player*)m_caster;
+
+    // Enchanting a vellum requires special handling, as it creates a new item
+    // instead of modifying an existing one.
+    ItemPrototype const* targetProto = itemTarget->GetProto();
+    if(targetProto->IsVellum() && m_spellInfo->EffectItemType[effect_idx])
+    {
+        unitTarget = m_caster;
+        DoCreateItem(effect_idx,m_spellInfo->EffectItemType[effect_idx]);
+        // Vellum target case: Target becomes additional reagent, new scroll item created instead in Spell::EffectEnchantItemPerm()
+        // cannot already delete in TakeReagents() unfortunately
+        p_caster->DestroyItemCount(targetProto->ItemId, 1, true);
+        return;
+    }
+
+    // not grow at item use at item case, using scrolls does not increase enchanting skill!
+    if (!(m_CastItem && m_CastItem->GetProto()->Flags & ITEM_FLAGS_ENCHANT_SCROLL))
+        p_caster->UpdateCraftSkill(m_spellInfo->Id);
 
     if (item_owner!=p_caster && p_caster->GetSession()->GetSecurity() > SEC_PLAYER && sWorld.getConfig(CONFIG_GM_LOG_TRADE) )
     {
@@ -4469,14 +4612,6 @@ void Spell::EffectEnchantItemTmp(uint32 i)
     Player* item_owner = itemTarget->GetOwner();
     if(!item_owner)
         return;
-
-    ItemPrototype const* targetProto = itemTarget->GetProto();
-    if(m_spellInfo->EffectItemType[i] && targetProto->IsVellum())
-    {
-        unitTarget = m_caster;
-        DoCreateItem(i,m_spellInfo->EffectItemType[i]);
-        return;
-    }
 
     if(item_owner!=p_caster && p_caster->GetSession()->GetSecurity() > SEC_PLAYER && sWorld.getConfig(CONFIG_GM_LOG_TRADE) )
     {
@@ -5371,6 +5506,40 @@ void Spell::EffectScriptEffect(uint32 effIndex)
                     unitTarget->RemoveSpellsCausingAura(SPELL_AURA_MOD_DECREASE_SPEED);
                     unitTarget->RemoveSpellsCausingAura(SPELL_AURA_MOD_STALKED);
                     unitTarget->RemoveSpellsCausingAura(SPELL_AURA_MOD_STUN);
+                    return;
+                }
+                // Stoneclaw Totem absorb 
+                case 55278:
+                case 55328:
+                case 55329:
+                case 55330:
+                case 55332:
+                case 55333:
+                case 55335:
+                case 58589:
+                case 58590:
+                case 58591:
+                {
+                    if(!unitTarget)
+                        return;
+
+                    for(int slot = 0;  slot < MAX_TOTEM; ++slot)
+                    {
+                        if(!unitTarget->m_TotemSlot[slot])
+                            continue;
+
+                        Creature* totem = unitTarget->GetMap()->GetCreature(unitTarget->m_TotemSlot[slot]);
+                        if(totem && totem->isTotem())
+                            totem->CastCustomSpell(totem, 55277, &damage, NULL, NULL, true);
+                    }
+                    
+                    // Glyph of Stoneclaw Totem
+                    if (Aura *aur = unitTarget->GetAura(63298, 0))
+                    {
+                        int32 totalAbsorb = aur->GetModifier()->m_amount * damage;
+                        if (totalAbsorb)
+                            unitTarget->CastCustomSpell(unitTarget, 55277, &totalAbsorb, NULL, NULL, true);
+                    }
                     return;
                 }
                 // Escape artist
@@ -7418,6 +7587,54 @@ void Spell::EffectRenamePet(uint32 /*eff_idx*/)
     unitTarget->SetByteValue(UNIT_FIELD_BYTES_2, 2, UNIT_RENAME_ALLOWED);
 }
 
+void Spell::EffectSummonVehicle(uint32 i)
+{
+    uint32 creature_entry = m_spellInfo->EffectMiscValue[i];
+    if(!creature_entry)
+        return;
+
+    float px, py, pz;
+    // If dest location if present
+    if (m_targets.m_targetMask & TARGET_FLAG_DEST_LOCATION)
+    {
+        // Summon unit in dest location
+        px = m_targets.m_destX;
+        py = m_targets.m_destY;
+        pz = m_targets.m_destZ;
+    }
+    // Summon if dest location not present near caster
+    else
+        m_caster->GetClosePoint(px,py,pz,3.0f);
+
+    Vehicle *v = m_caster->SummonVehicle(creature_entry, px, py, pz, m_caster->GetOrientation());
+    if(!v)
+        return;
+
+    v->SetUInt32Value(UNIT_CREATED_BY_SPELL, m_spellInfo->Id);
+    v->SetCreatorGUID(m_caster->GetGUID());
+
+    if(damage)
+    {
+        m_caster->CastSpell(v, damage, true);
+        m_caster->EnterVehicle(v, 0);
+    }
+    int32 duration = GetSpellMaxDuration(m_spellInfo);
+    if(duration > 0)
+        v->SetSpawnDuration(duration);
+}
+
+void Spell::EffectDamageBuilding(uint32 i)
+{
+    if(!gameObjTarget)
+        return;
+
+    if(gameObjTarget->GetGoType() != GAMEOBJECT_TYPE_DESTRUCTIBLE_BUILDING)
+        return;
+
+    // NOTE : this can be increased by scaling stat system in vehicles
+    gameObjTarget->DealSiegeDamage(damage);
+}
+
 void Spell::EffectPlayMusic(uint32 i)
 {
     if(!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
@@ -7434,4 +7651,20 @@ void Spell::EffectPlayMusic(uint32 i)
     WorldPacket data(SMSG_PLAY_MUSIC, 4);
     data << uint32(soundid);
     ((Player*)unitTarget)->GetSession()->SendPacket(&data);
+}
+
+void Spell::EffectSpecCount(uint32 /*eff_idx*/)
+{
+    if(!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+        return;
+
+    ((Player*)unitTarget)->UpdateSpecCount(damage);
+}
+
+void Spell::EffectActivateSpec(uint32 /*eff_idx*/)
+{
+    if(!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+        return;
+
+    ((Player*)unitTarget)->ActivateSpec(damage-1);  // damage is 1 or 2, spec is 0 or 1
 }

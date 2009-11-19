@@ -107,7 +107,7 @@ class SpellCastTargets
         SpellCastTargets();
         ~SpellCastTargets();
 
-        bool read ( WorldPacket * data, Unit *caster );
+        bool read ( WorldPacket * data, Unit *caster, SpellEntry const* spell = NULL );
         void write ( WorldPacket * data );
 
         SpellCastTargets& operator=(const SpellCastTargets &target)
@@ -250,6 +250,7 @@ class Spell
         void EffectPickPocket(uint32 i);
         void EffectAddFarsight(uint32 i);
         void EffectSummonWild(uint32 i);
+        void EffectSummonPosessed(uint32 i);
         void EffectSummonGuardian(uint32 i);
         void EffectHealMechanical(uint32 i);
         void EffectJump(uint32 i);
@@ -328,7 +329,11 @@ class Spell
         void EffectActivateRune(uint32 i);
         void EffectTitanGrip(uint32 i);
         void EffectEnchantItemPrismatic(uint32 i);
+        void EffectSummonVehicle(uint32 i);
+        void EffectDamageBuilding(uint32 i);
         void EffectPlayMusic(uint32 i);
+        void EffectSpecCount(uint32 i);
+        void EffectActivateSpec(uint32 i);
 
         Spell( Unit* Caster, SpellEntry const *info, bool triggered, uint64 originalCasterGUID = 0, Spell** triggeringContainer = NULL );
         ~Spell();

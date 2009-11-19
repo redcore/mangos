@@ -585,11 +585,12 @@ class MANGOS_DLL_SPEC GameObject : public WorldObject
         void DeleteFromDB();
 
         void SetOwnerGUID(uint64 owner)
-        {
-            m_spawnedByDefault = false;                     // all object with owner is despawned after delay
-            SetUInt64Value(OBJECT_FIELD_CREATED_BY, owner);
+        {   m_spawnedByDefault = false;                     // all object with owner is despawned after delay
+			uint16 temp_object = (uint16)OBJECT_FIELD_CREATED_BY & 0x07;
+			if ( owner == 0) owner = (uint64)owner & 0x0;
+	        SetUInt64Value(temp_object, owner);
         }
-        uint64 GetOwnerGUID() const { return GetUInt64Value(OBJECT_FIELD_CREATED_BY); }
+        uint64 GetOwnerGUID() const { uint16 temp_object = (uint16)OBJECT_FIELD_CREATED_BY & 0x07; return GetUInt64Value(temp_object); }
         Unit* GetOwner() const;
 
         void SetSpellId(uint32 id)
@@ -677,12 +678,14 @@ class MANGOS_DLL_SPEC GameObject : public WorldObject
 
         bool isActiveObject() const { return false; }
         uint64 GetRotation() const { return m_rotation; }
+        void DealSiegeDamage(uint32 damage);
     protected:
         uint32      m_spellId;
         time_t      m_respawnTime;                          // (secs) time of next respawn (or despawn if GO have owner()),
         uint32      m_respawnDelayTime;                     // (secs) if 0 then current GO state no dependent from timer
         LootState   m_lootState;
         bool        m_spawnedByDefault;
+        int32       m_actualHealth;                         // current health state
         time_t      m_cooldownTime;                         // used as internal reaction delay time store (not state change reaction).
                                                             // For traps this: spell casting cooldown, for doors/buttons: reset time.
         std::list<uint32> m_SkillupList;
