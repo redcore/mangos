@@ -1498,14 +1498,22 @@ void Spell::EffectDummy(uint32 i)
                     return;
 
                 uint32 rage = m_caster->GetPower(POWER_RAGE);
-                // Glyph of Execution bonus
-                if (Aura *aura = m_caster->GetDummyAura(58367))
-                    rage+=aura->GetModifier()->m_amount;
 
-                int32 basePoints0 = damage+int32(rage * m_spellInfo->DmgMultiplier[i] +
+                // up to max 30 rage cost
+                if(rage > 30)
+                    rage = 30;
+
+                // Glyph of Execution bonus
+                uint32 rage_modified = rage;
+
+                if (Aura *aura = m_caster->GetDummyAura(58367))
+                    rage_modified +=  aura->GetModifier()->m_amount;
+
+                int32 basePoints0 = damage+int32(rage_modified * m_spellInfo->DmgMultiplier[i] +
                                                  m_caster->GetTotalAttackPowerValue(BASE_ATTACK)*0.2f);
+
                 m_caster->CastCustomSpell(unitTarget, 20647, &basePoints0, NULL, NULL, true, 0);
-                m_caster->SetPower(POWER_RAGE, 0);
+                m_caster->SetPower(POWER_RAGE, m_caster->GetPower(POWER_RAGE)-rage);
                 return;
             }
             // Concussion Blow
@@ -3607,6 +3615,7 @@ void Spell::EffectSummonType(uint32 i)
         case SUMMON_TYPE_POSESSED2:
         case SUMMON_TYPE_FORCE_OF_NATURE:
         case SUMMON_TYPE_GUARDIAN2:
+        case SUMMON_TYPE_RUNE_BLADE:
         case SUMMON_TYPE_GUARDIAN3:
         case SUMMON_TYPE_GHOUL:
         case SUMMON_TYPE_GHOUL_OF_THE_DEAD:
@@ -5499,6 +5508,40 @@ void Spell::EffectScriptEffect(uint32 effIndex)
                     unitTarget->RemoveSpellsCausingAura(SPELL_AURA_MOD_STUN);
                     return;
                 }
+                // Stoneclaw Totem absorb 
+                case 55278:
+                case 55328:
+                case 55329:
+                case 55330:
+                case 55332:
+                case 55333:
+                case 55335:
+                case 58589:
+                case 58590:
+                case 58591:
+                {
+                    if(!unitTarget)
+                        return;
+
+                    for(int slot = 0;  slot < MAX_TOTEM; ++slot)
+                    {
+                        if(!unitTarget->m_TotemSlot[slot])
+                            continue;
+
+                        Creature* totem = unitTarget->GetMap()->GetCreature(unitTarget->m_TotemSlot[slot]);
+                        if(totem && totem->isTotem())
+                            totem->CastCustomSpell(totem, 55277, &damage, NULL, NULL, true);
+                    }
+                    
+                    // Glyph of Stoneclaw Totem
+                    if (Aura *aur = unitTarget->GetAura(63298, 0))
+                    {
+                        int32 totalAbsorb = aur->GetModifier()->m_amount * damage;
+                        if (totalAbsorb)
+                            unitTarget->CastCustomSpell(unitTarget, 55277, &totalAbsorb, NULL, NULL, true);
+                    }
+                    return;
+                }
                 // Escape artist
                 case 20589:
                 {
@@ -6827,8 +6870,6 @@ void Spell::EffectSelfResurrect(uint32 i)
     plr->SetPower(POWER_ENERGY, plr->GetMaxPower(POWER_ENERGY) );
 
     plr->SpawnCorpseBones();
-
-    plr->SaveToDB();
 }
 
 void Spell::EffectSkinning(uint32 /*i*/)

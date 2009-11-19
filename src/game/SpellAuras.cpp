@@ -2461,7 +2461,7 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
             {
                 if (m_target->GetMap()->IsDungeon())
                 {
-                    uint32 spellId = m_target->GetMap()->IsHeroic() ? 46163 : 44190;
+                    uint32 spellId = m_target->GetMap()->IsRegularDifficulty() ? 44190 : 46163;
 
                     m_target->CastSpell(m_target, spellId, true, NULL, this);
                 }
@@ -2895,6 +2895,21 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 }
 
                 ((Player*)m_target)->AddSpellMod(m_spellmod, apply);
+                return;
+            }
+            // Improved Unholy Presence
+            if (GetSpellProto()->Id == 50391 || GetSpellProto()->Id == 50392)
+            {
+                if (apply)
+                {
+                     m_target->CastCustomSpell(m_target, 63622, &GetSpellProto()->EffectBasePoints[1], NULL, NULL, true, NULL, this);
+                     m_target->CastCustomSpell(m_target, 65095, &GetSpellProto()->EffectBasePoints[1], NULL, NULL, true, NULL, this);
+                }
+                else
+                {
+                     m_target->RemoveAurasDueToSpell(63622);
+                     m_target->RemoveAurasDueToSpell(65095);
+                }
                 return;
             }
             break;
@@ -4972,6 +4987,21 @@ void Aura::HandlePeriodicDamage(bool apply, bool Real)
                 {
                     // $RAP*0.1/5 bonus per tick
                     m_modifier.m_amount += int32(caster->GetTotalAttackPowerValue(RANGED_ATTACK) * 10 / 500);
+                    return;
+                }
+                break;
+            }
+            case SPELLFAMILY_PALADIN:
+            {
+                // Holy Vengeance / Blood Corruption
+                if ( m_spellProto->SpellIconID == 2292 && m_spellProto->SpellVisual[0] == 7902 )
+                {
+                    if (caster->GetTypeId() != TYPEID_PLAYER)
+                        return;
+                    // 0.013 * SPH + 0.025 * AP bonus per tick
+                    float ap = caster->GetTotalAttackPowerValue(BASE_ATTACK);
+                    int32 holy = ((Player*)caster)->SpellBaseDamageBonus(GetSpellSchoolMask(m_spellProto));
+                    m_modifier.m_amount += int32(0.013 * holy + 0.025 * ap);
                     return;
                 }
                 break;
