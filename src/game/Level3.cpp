@@ -1060,7 +1060,7 @@ bool ChatHandler::HandleSetSkillCommand(const char* args)
 
     if(!target->GetSkillValue(skill))
     {
-        PSendSysMessage(LANG_SET_SKILL_ERROR, tNameLink.c_str(), skill, sl->name[0]);
+        PSendSysMessage(LANG_SET_SKILL_ERROR, tNameLink.c_str(), skill, sl->name[GetSessionDbcLocale()]);
         SetSentErrorMessage(true);
         return false;
     }
@@ -1071,7 +1071,7 @@ bool ChatHandler::HandleSetSkillCommand(const char* args)
         return false;
 
     target->SetSkill(skill, level, max);
-    PSendSysMessage(LANG_SET_SKILL, skill, sl->name[0], tNameLink.c_str(), level, max);
+    PSendSysMessage(LANG_SET_SKILL, skill, sl->name[GetSessionDbcLocale()], tNameLink.c_str(), level, max);
 
     return true;
 }
@@ -3523,7 +3523,6 @@ bool ChatHandler::HandleReviveCommand(const char* args)
     {
         target->ResurrectPlayer(0.5f);
         target->SpawnCorpseBones();
-        target->SaveToDB();
     }
     else
         // will resurrected at login without corpse
