@@ -79,7 +79,7 @@ struct MANGOS_DLL_DECL boss_svalaAI : public ScriptedAI
     boss_svalaAI(Creature* pCreature) : ScriptedAI(pCreature)
     {
         m_pInstance = (ScriptedInstance*)pCreature->GetInstanceData();
-        m_bIsHeroicMode = pCreature->GetMap()->IsHeroic();
+        m_bIsHeroicMode = pCreature->GetMap()->IsRegularDifficulty();
         Reset();
 		
 		SpellEntry* TempSpell = (SpellEntry*)GetSpellStore()->LookupEntry(SPELL_PARALYZE);
@@ -259,7 +259,7 @@ struct MANGOS_DLL_DECL boss_svala_sorrowgraveAI : public ScriptedAI
     boss_svala_sorrowgraveAI(Creature* pCreature) : ScriptedAI(pCreature)
     {
     	m_pInstance = ((ScriptedInstance*)pCreature->GetInstanceData());
-    	m_bIsHeroic = pCreature->GetMap()->IsHeroic();
+    	m_bIsHeroic = pCreature->GetMap()->IsRegularDifficulty();
     	Reset();
     }
 

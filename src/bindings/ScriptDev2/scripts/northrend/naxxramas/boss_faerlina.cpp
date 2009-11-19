@@ -51,7 +51,7 @@ struct MANGOS_DLL_DECL boss_faerlinaAI : public ScriptedAI
     boss_faerlinaAI(Creature* pCreature) : ScriptedAI(pCreature)
     {
         m_pInstance = (ScriptedInstance*)pCreature->GetInstanceData();
-        m_bIsHeroicMode = pCreature->GetMap()->IsHeroic();
+        m_bIsHeroicMode = pCreature->GetMap()->IsRegularDifficulty();
         Reset();
     }
 
@@ -162,7 +162,7 @@ struct MANGOS_DLL_DECL mob_worshippersAI : public ScriptedAI
     mob_worshippersAI(Creature* pCreature) : ScriptedAI(pCreature)
     {
         m_pInstance = (ScriptedInstance*)pCreature->GetInstanceData();
-        m_bIsHeroicMode = pCreature->GetMap()->IsHeroic();
+        m_bIsHeroicMode = pCreature->GetMap()->IsRegularDifficulty();
         Reset();
     }
 

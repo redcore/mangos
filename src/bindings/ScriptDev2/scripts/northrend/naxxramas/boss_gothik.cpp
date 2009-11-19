@@ -130,7 +130,7 @@ struct MANGOS_DLL_DECL boss_gothikAI : public Scripted_NoMovementAI
     boss_gothikAI(Creature* pCreature) : Scripted_NoMovementAI(pCreature)
     {
         m_pInstance = (ScriptedInstance*)pCreature->GetInstanceData();
-        m_bIsHeroicMode = pCreature->GetMap()->IsHeroic();
+        m_bIsHeroicMode = pCreature->GetMap()->IsRegularDifficulty();
         Reset();
     }
 

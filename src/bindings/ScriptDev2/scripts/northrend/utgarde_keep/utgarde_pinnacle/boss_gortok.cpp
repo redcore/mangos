@@ -76,7 +76,7 @@ struct MANGOS_DLL_DECL boss_gortokAI : public ScriptedAI
     boss_gortokAI(Creature* pCreature) : ScriptedAI(pCreature)
     {
         m_pInstance = (ScriptedInstance*)pCreature->GetInstanceData();
-        m_bIsHeroicMode = pCreature->GetMap()->IsHeroic();
+        m_bIsHeroicMode = pCreature->GetMap()->IsRegularDifficulty();
         Reset();
     }
 
@@ -281,7 +281,7 @@ struct MANGOS_DLL_DECL mob_massive_jormungarAI : public ScriptedAI
     mob_massive_jormungarAI(Creature* pCreature) : ScriptedAI(pCreature)
     {
     	m_pInstance = ((ScriptedInstance*)pCreature->GetInstanceData());
-    	m_bIsHeroicMode = pCreature->GetMap()->IsHeroic();
+    	m_bIsHeroicMode = pCreature->GetMap()->IsRegularDifficulty();
     	Reset();
     }
 
@@ -374,7 +374,7 @@ struct MANGOS_DLL_DECL mob_ferocious_rhinoAI : public ScriptedAI
     mob_ferocious_rhinoAI(Creature* pCreature) : ScriptedAI(pCreature)
     {
     	m_pInstance = ((ScriptedInstance*)pCreature->GetInstanceData());
-    	m_bIsHeroicMode = pCreature->GetMap()->IsHeroic();
+    	m_bIsHeroicMode = pCreature->GetMap()->IsRegularDifficulty();
     	Reset();
     }
 
@@ -452,7 +452,7 @@ struct MANGOS_DLL_DECL mob_ravenous_furbolgAI : public ScriptedAI
 {
     mob_ravenous_furbolgAI(Creature* pCreature) : ScriptedAI(pCreature) {
     	m_pInstance = ((ScriptedInstance*)pCreature->GetInstanceData());
-    	m_bIsHeroicMode = pCreature->GetMap()->IsHeroic();
+    	m_bIsHeroicMode = pCreature->GetMap()->IsRegularDifficulty();
     	Reset();
     }
 
@@ -530,7 +530,7 @@ struct MANGOS_DLL_DECL mob_frenzied_worgenAI : public ScriptedAI
 {
     mob_frenzied_worgenAI(Creature* pCreature) : ScriptedAI(pCreature) {
     	m_pInstance = ((ScriptedInstance*)pCreature->GetInstanceData());
-    	m_bIsHeroicMode = pCreature->GetMap()->IsHeroic();
+    	m_bIsHeroicMode = pCreature->GetMap()->IsRegularDifficulty();
     	Reset();
     }
 

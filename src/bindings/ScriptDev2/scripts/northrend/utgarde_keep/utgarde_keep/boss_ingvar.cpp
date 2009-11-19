@@ -73,7 +73,7 @@ struct MANGOS_DLL_DECL boss_ingvar_the_plundererAI : public ScriptedAI
     boss_ingvar_the_plundererAI(Creature *pCreature) : ScriptedAI(pCreature)
     {
         pInstance = (ScriptedInstance*)pCreature->GetInstanceData();
-        HeroicMode = pCreature->GetMap()->IsHeroic();
+        HeroicMode = pCreature->GetMap()->IsRegularDifficulty();
 		Reset();
     }
 
@@ -400,7 +400,7 @@ struct MANGOS_DLL_DECL mob_ingvar_throw_dummyAI : public ScriptedAI
     mob_ingvar_throw_dummyAI(Creature *pCreature) : ScriptedAI(pCreature)
     {
 		pInstance =(ScriptedInstance*)pCreature->GetInstanceData();
-        HeroicMode = pCreature->GetMap()->IsHeroic();
+        HeroicMode = pCreature->GetMap()->IsRegularDifficulty();
 		Reset();
     }
 	ScriptedInstance* pInstance;

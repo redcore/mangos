@@ -32,15 +32,16 @@ npc_air_force_bots       80%    support for misc (invisible) guard bots in areas
 npc_chicken_cluck       100%    support for quest 3861 (Cluck!)
 npc_dancing_flames      100%    midsummer event NPC
 npc_guardian            100%    guardianAI used to prevent players from accessing off-limits areas. Not in use by SD2
-npc_garments_of_quests  80%     NPC's related to all Garments of-quests 5621, 5624, 5625, 5648, 5650
+npc_garments_of_quests   80%    NPC's related to all Garments of-quests 5621, 5624, 5625, 5648, 5650
 npc_injured_patient     100%    patients for triage-quests (6622 and 6624)
 npc_doctor              100%    Gustaf Vanhowzen and Gregory Victor, quest 6622 and 6624 (Triage)
-npc_innkeeper           25%     Innkeepers in general. A lot do be done here (misc options for events)
+npc_innkeeper            25%    Innkeepers in general. A lot do be done here (misc options for events)
 npc_kingdom_of_dalaran_quests   Misc NPC's gossip option related to quests 12791, 12794 and 12796
 npc_lunaclaw_spirit     100%    Appears at two different locations, quest 6001/6002
 npc_mount_vendor        100%    Regular mount vendors all over the world. Display gossip if player doesn't meet the requirements to buy
-npc_rogue_trainer       80%     Scripted trainers, so they are able to offer item 17126 for class quest 6681
+npc_rogue_trainer        80%    Scripted trainers, so they are able to offer item 17126 for class quest 6681
 npc_sayge               100%    Darkmoon event fortune teller, buff player based on answers given
+npc_tabard_vendor        50%    allow recovering quest related tabards, achievement related ones need core support
 EndContentData */
 
 /*########
@@ -1451,48 +1452,168 @@ bool GossipSelect_npc_sayge(Player* pPlayer, Creature* pCreature, uint32 uiSende
     return true;
 }
 
-struct MANGOS_DLL_DECL npc_rune_blade : public ScriptedAI
+/*######
+## npc_tabard_vendor
+######*/
+
+enum
 {
-    npc_rune_blade(Creature* pCreature) : ScriptedAI(pCreature) {Reset();}
-    void Reset()
-    {
-        Unit * owner = m_creature->GetOwner();
-        if (!owner || owner->GetTypeId() != TYPEID_PLAYER)
-            return;
+    QUEST_TRUE_MASTERS_OF_LIGHT                = 9737,
+    QUEST_THE_UNWRITTEN_PROPHECY               = 9762,
+    QUEST_INTO_THE_BREACH                      = 10259,
+    QUEST_BATTLE_OF_THE_CRIMSON_WATCH          = 10781,
+    QUEST_SHARDS_OF_AHUNE                      = 11972,
 
-        // Cannot be Selected or Attacked
-        m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-        m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+    ACHIEVEMENT_EXPLORE_NORTHREND              = 45,
+    ACHIEVEMENT_TWENTYFIVE_TABARDS             = 1021,
+    ACHIEVEMENT_THE_LOREMASTER_A               = 1681,
+    ACHIEVEMENT_THE_LOREMASTER_H               = 1682,
 
-        // Add visible weapon
-        if (Item const * item = ((Player *)owner)->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND))
-            m_creature->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID, item->GetProto()->ItemId);
+    ITEM_TABARD_OF_THE_HAND                    = 24344,
+    ITEM_TABARD_OF_THE_BLOOD_KNIGHT            = 25549,
+    ITEM_TABARD_OF_THE_PROTECTOR               = 28788,
+    ITEM_OFFERING_OF_THE_SHATAR                = 31408,
+    ITEM_GREEN_TROPHY_TABARD_OF_THE_ILLIDARI   = 31404,
+    ITEM_PURPLE_TROPHY_TABARD_OF_THE_ILLIDARI  = 31405,
+    ITEM_TABARD_OF_THE_SUMMER_SKIES            = 35279,
+    ITEM_TABARD_OF_THE_SUMMER_FLAMES           = 35280,
+    ITEM_TABARD_OF_THE_ACHIEVER                = 40643,
+    ITEM_LOREMASTERS_COLORS                    = 43300,
+    ITEM_TABARD_OF_THE_EXPLORER                = 43348,
 
-        // Add stats scaling
-        int32 damageDone=owner->CalculateDamage(BASE_ATTACK, true); // might be average damage instead ?
-        int32 meleeSpeed=owner->m_modAttackSpeedPct[BASE_ATTACK];
-        m_creature->CastCustomSpell(m_creature, 51906, &damageDone, &meleeSpeed, NULL, true);
-
-        // Visual Glow
-        m_creature->CastSpell(m_creature, 53160, true);
-
-        // Start Chasing victim
-        if (uint64 guid = ((Player*)owner)->GetSelection())
-            if (Unit *target = m_creature->GetUnit(*owner,guid))
-                if (!target->IsFriendlyTo(owner))
-                    m_creature->Attack(target,true);
-
-    }
+    SPELL_TABARD_OF_THE_BLOOD_KNIGHT           = 54974,
+    SPELL_TABARD_OF_THE_HAND                   = 54976,
+    SPELL_GREEN_TROPHY_TABARD_OF_THE_ILLIDARI  = 54977,
+    SPELL_PURPLE_TROPHY_TABARD_OF_THE_ILLIDARI = 54982,
+    SPELL_TABARD_OF_THE_ACHIEVER               = 55006,
+    SPELL_TABARD_OF_THE_PROTECTOR              = 55008,
+    SPELL_LOREMASTERS_COLORS                   = 58194,
+    SPELL_TABARD_OF_THE_EXPLORER               = 58224,
+    SPELL_TABARD_OF_SUMMER_SKIES               = 62768,
+    SPELL_TABARD_OF_SUMMER_FLAMES              = 62769
 };
 
-CreatureAI* GetAI_npc_rune_blade(Creature* pCreature)
+#define GOSSIP_LOST_TABARD_OF_BLOOD_KNIGHT               "I've lost my Tabard of Blood Knight."
+#define GOSSIP_LOST_TABARD_OF_THE_HAND                   "I've lost my Tabard of the Hand."
+#define GOSSIP_LOST_TABARD_OF_THE_PROTECTOR              "I've lost my Tabard of the Protector."
+#define GOSSIP_LOST_GREEN_TROPHY_TABARD_OF_THE_ILLIDARI  "I've lost my Green Trophy Tabard of the Illidari."
+#define GOSSIP_LOST_PURPLE_TROPHY_TABARD_OF_THE_ILLIDARI "I've lost my Purple Trophy Tabard of the Illidari."
+#define GOSSIP_LOST_TABARD_OF_SUMMER_SKIES               "I've lost my Tabard of Summer Skies."
+#define GOSSIP_LOST_TABARD_OF_SUMMER_FLAMES              "I've lost my Tabard of Summer Flames."
+#define GOSSIP_LOST_LOREMASTERS_COLORS                   "I've lost my Loremaster's Colors."
+#define GOSSIP_LOST_TABARD_OF_THE_EXPLORER               "I've lost my Tabard of the Explorer."
+#define GOSSIP_LOST_TABARD_OF_THE_ACHIEVER               "I've lost my Tabard of the Achiever."
+
+bool GossipHello_npc_tabard_vendor(Player* pPlayer, Creature* pCreature)
 {
-    return new npc_rune_blade(pCreature);
+    bool m_bLostBloodKnight = false;
+    bool m_bLostHand        = false;
+    bool m_bLostProtector   = false;
+    bool m_bLostIllidari    = false;
+    bool m_bLostSummer      = false;
+
+    //Tabard of the Blood Knight
+    if (pPlayer->GetQuestRewardStatus(QUEST_TRUE_MASTERS_OF_LIGHT) && !pPlayer->HasItemCount(ITEM_TABARD_OF_THE_BLOOD_KNIGHT, 1, true))
+        m_bLostBloodKnight = true;
+
+    //Tabard of the Hand
+    if (pPlayer->GetQuestRewardStatus(QUEST_THE_UNWRITTEN_PROPHECY) && !pPlayer->HasItemCount(ITEM_TABARD_OF_THE_HAND, 1, true))
+        m_bLostHand = true;
+
+    //Tabard of the Protector
+    if (pPlayer->GetQuestRewardStatus(QUEST_INTO_THE_BREACH) && !pPlayer->HasItemCount(ITEM_TABARD_OF_THE_PROTECTOR, 1, true))
+        m_bLostProtector = true;
+
+    //Green Trophy Tabard of the Illidari
+    //Purple Trophy Tabard of the Illidari
+    if (pPlayer->GetQuestRewardStatus(QUEST_BATTLE_OF_THE_CRIMSON_WATCH) &&
+        (!pPlayer->HasItemCount(ITEM_GREEN_TROPHY_TABARD_OF_THE_ILLIDARI, 1, true) &&
+        !pPlayer->HasItemCount(ITEM_PURPLE_TROPHY_TABARD_OF_THE_ILLIDARI, 1, true) &&
+        !pPlayer->HasItemCount(ITEM_OFFERING_OF_THE_SHATAR, 1, true)))
+        m_bLostIllidari = true;
+
+    //Tabard of Summer Skies
+    //Tabard of Summer Flames
+    if (pPlayer->GetQuestRewardStatus(QUEST_SHARDS_OF_AHUNE) &&
+        !pPlayer->HasItemCount(ITEM_TABARD_OF_THE_SUMMER_SKIES, 1, true) &&
+        !pPlayer->HasItemCount(ITEM_TABARD_OF_THE_SUMMER_FLAMES, 1, true))
+        m_bLostSummer = true;
+
+    if (m_bLostBloodKnight || m_bLostHand || m_bLostProtector || m_bLostIllidari || m_bLostSummer)
+    {
+        pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_VENDOR, GOSSIP_TEXT_BROWSE_GOODS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_TRADE);
+
+        if (m_bLostBloodKnight)
+            pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_LOST_TABARD_OF_BLOOD_KNIGHT, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF +1);
+
+        if (m_bLostHand)
+            pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_LOST_TABARD_OF_THE_HAND, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF +2);
+
+        if (m_bLostProtector)
+            pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_LOST_TABARD_OF_THE_PROTECTOR, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+3);
+
+        if (m_bLostIllidari)
+        {
+            pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_LOST_GREEN_TROPHY_TABARD_OF_THE_ILLIDARI, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+4);
+            pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_LOST_PURPLE_TROPHY_TABARD_OF_THE_ILLIDARI, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+5);
+        }
+
+        if (m_bLostSummer)
+        {
+            pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_LOST_TABARD_OF_SUMMER_SKIES, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+6);
+            pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_LOST_TABARD_OF_SUMMER_FLAMES, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+7);
+        }
+
+        pPlayer->SEND_GOSSIP_MENU(13583, pCreature->GetGUID());
+    }
+    else
+        pPlayer->SEND_VENDORLIST(pCreature->GetGUID());
+
+    return true;
+}
+
+bool GossipSelect_npc_tabard_vendor(Player* pPlayer, Creature* pCreature, uint32 uiSender, uint32 uiAction)
+{
+    switch(uiAction)
+    {
+        case GOSSIP_ACTION_TRADE:
+            pPlayer->SEND_VENDORLIST(pCreature->GetGUID());
+            break;
+        case GOSSIP_ACTION_INFO_DEF+1:
+            pPlayer->CLOSE_GOSSIP_MENU();
+            pPlayer->CastSpell(pPlayer, SPELL_TABARD_OF_THE_BLOOD_KNIGHT, false);
+            break;
+        case GOSSIP_ACTION_INFO_DEF+2:
+            pPlayer->CLOSE_GOSSIP_MENU();
+            pPlayer->CastSpell(pPlayer, SPELL_TABARD_OF_THE_HAND, false);
+            break;
+        case GOSSIP_ACTION_INFO_DEF+3:
+            pPlayer->CLOSE_GOSSIP_MENU();
+            pPlayer->CastSpell(pPlayer, SPELL_TABARD_OF_THE_PROTECTOR, false);
+            break;
+        case GOSSIP_ACTION_INFO_DEF+4:
+            pPlayer->CLOSE_GOSSIP_MENU();
+            pPlayer->CastSpell(pPlayer, SPELL_GREEN_TROPHY_TABARD_OF_THE_ILLIDARI, false);
+            break;
+        case GOSSIP_ACTION_INFO_DEF+5:
+            pPlayer->CLOSE_GOSSIP_MENU();
+            pPlayer->CastSpell(pPlayer, SPELL_PURPLE_TROPHY_TABARD_OF_THE_ILLIDARI, false);
+            break;
+        case GOSSIP_ACTION_INFO_DEF+6:
+            pPlayer->CLOSE_GOSSIP_MENU();
+            pPlayer->CastSpell(pPlayer, SPELL_TABARD_OF_SUMMER_SKIES, false);
+            break;
+        case GOSSIP_ACTION_INFO_DEF+7:
+            pPlayer->CLOSE_GOSSIP_MENU();
+            pPlayer->CastSpell(pPlayer, SPELL_TABARD_OF_SUMMER_FLAMES, false);
+            break;
+    }
+    return true;
 }
 
 void AddSC_npcs_special()
 {
-    Script *newscript;
+    Script* newscript;
 
     newscript = new Script;
     newscript->Name = "npc_air_force_bots";
@@ -1569,7 +1690,8 @@ void AddSC_npcs_special()
     newscript->RegisterSelf();
 
     newscript = new Script;
-    newscript->Name = "npc_runeblade";
-    newscript->GetAI = &GetAI_npc_rune_blade;
+    newscript->Name = "npc_tabard_vendor";
+    newscript->pGossipHello =  &GossipHello_npc_tabard_vendor;
+    newscript->pGossipSelect = &GossipSelect_npc_tabard_vendor;
     newscript->RegisterSelf();
 }

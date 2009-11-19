@@ -52,7 +52,7 @@ struct MANGOS_DLL_DECL boss_heiganAI : public ScriptedAI
     boss_heiganAI(Creature* pCreature) : ScriptedAI(pCreature)
     {
         m_pInstance = (ScriptedInstance*)pCreature->GetInstanceData();
-        m_bIsHeroicMode = pCreature->GetMap()->IsHeroic();
+        m_bIsHeroicMode = pCreature->GetMap()->IsRegularDifficulty();
         Reset();
     }
 

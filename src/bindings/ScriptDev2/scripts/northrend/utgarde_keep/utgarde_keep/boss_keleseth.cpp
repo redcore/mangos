@@ -109,7 +109,7 @@ struct MANGOS_DLL_DECL boss_kelesethAI : public ScriptedAI
     boss_kelesethAI(Creature *pCreature) : ScriptedAI(pCreature)
     {
         pInstance = (ScriptedInstance*)pCreature->GetInstanceData();
-        Heroic = pCreature->GetMap()->IsHeroic();
+        Heroic = pCreature->GetMap()->IsRegularDifficulty();
 		Reset();
     }
 
@@ -238,7 +238,7 @@ struct MANGOS_DLL_DECL mob_vrykul_skeletonAI : public ScriptedAI
     mob_vrykul_skeletonAI(Creature *pCreature) : ScriptedAI(pCreature)
     {
         pInstance = (ScriptedInstance*)pCreature->GetInstanceData();
-		Heroic = pCreature->GetMap()->IsHeroic();
+		Heroic = pCreature->GetMap()->IsRegularDifficulty();
 		Reset();
     }
 
