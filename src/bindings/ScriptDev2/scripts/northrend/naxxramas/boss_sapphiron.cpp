@@ -263,8 +263,8 @@ struct MANGOS_DLL_DECL boss_sapphironAI : public ScriptedAI
                 if (FrostBreath_Timer < diff)
                 {
                     // apply immune
-                    std::list<HostileReference*>::iterator i = m_creature->getThreatManager().getThreatList().begin();
-                    for (i = m_creature->getThreatManager().getThreatList().begin(); i!= m_creature->getThreatManager().getThreatList().end();++i)
+                    ThreatList const& tList = m_creature->getThreatManager().getThreatList();
+                     for (ThreatList::const_iterator i = tList.begin();i != tList.end(); ++i)
                     {
                         Unit* pUnit = Unit::GetUnit((*m_creature), (*i)->getUnitGuid());
                         if (pUnit && (pUnit->GetTypeId() == TYPEID_PLAYER))
@@ -302,8 +302,8 @@ struct MANGOS_DLL_DECL boss_sapphironAI : public ScriptedAI
                     //m_creature->GetMotionMaster()->MoveChase(m_creature->getVictim());
                     DoStartMovement(m_creature->getVictim());
 
-                    std::list<HostileReference*>::iterator i = m_creature->getThreatManager().getThreatList().begin();
-                    for (i = m_creature->getThreatManager().getThreatList().begin(); i!= m_creature->getThreatManager().getThreatList().end();++i)
+                    ThreatList const& tList = m_creature->getThreatManager().getThreatList();
+                    for (ThreatList::const_iterator i = tList.begin();i != tList.end(); ++i)
                     {
                         Unit* pUnit = Unit::GetUnit((*m_creature), (*i)->getUnitGuid());
                         if (pUnit && (pUnit->GetTypeId() == TYPEID_PLAYER))
