@@ -96,17 +96,29 @@ struct MANGOS_DLL_DECL boss_patchwerkAI : public ScriptedAI
         if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
             return;
 
+<<<<<<< .mine
         //HatefullStrike_Timer
         if (HatefullStrike_Timer < diff)
+=======
+    void DoHatefulStrike()
+    {
+        // The ability is used on highest HP target choosen of the top 2 (3 heroic) targets on threat list being in melee range
+        Unit* pTarget = NULL;
+        uint32 uiHighestHP = 0;
+        uint32 uiTargets = m_bIsRegularMode ? 2 : 3;
+
+        ThreatList const& tList = m_creature->getThreatManager().getThreatList();
+        for (ThreatList::const_iterator iter = tList.begin();iter != tList.end(); ++iter)
+>>>>>>> .r1507
         {
             //Cast Hateful strike on the player with the highest
             //amount of HP within melee distance
             uint32 MostHP = 0;
             Unit* pMostHPTarget = NULL;
             Unit* pTemp = NULL;
-            std::list<HostileReference*>::iterator i = m_creature->getThreatManager().getThreatList().begin();
+            ThreatList const& tList = m_creature->getThreatManager().getThreatList();
 
-            for (i = m_creature->getThreatManager().getThreatList().begin(); i!=m_creature->getThreatManager().getThreatList().end(); ++i)
+            for (ThreatList::const_iterator i = tList.begin();i != tList.end(); ++i)
             {
                 pTemp = Unit::GetUnit((*m_creature),(*i)->getUnitGuid());
                 if (pTemp && pTemp->isAlive() && pTemp->GetHealth() > MostHP && m_creature->IsWithinDist(pTemp, 5.0f, false))

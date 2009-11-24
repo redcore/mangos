@@ -132,8 +132,24 @@ struct MANGOS_DLL_DECL boss_maexxnaAI : public ScriptedAI
 
     void DoCastWebWrap()
     {
+<<<<<<< .mine
         Unit* pWrapped = NULL;
         for(uint8 i = 0; i < 2; ++i)
+=======
+        ThreatList const& tList = m_creature->getThreatManager().getThreatList();
+        std::vector<Unit *> targets;
+
+        //This spell doesn't work if we only have 1 player on threat list
+        if (tList.size() < 2)
+            return;
+
+        //begin + 1 , so we don't target the one with the highest threat
+        ThreatList::const_iterator itr = tList.begin();
+        std::advance(itr, 1);
+
+        //store the threat list in a different container
+        for (;itr != tList.end(); ++itr)
+>>>>>>> .r1507
         {
             float LocX, LocY, LocZ;
             switch(rand()%3)
