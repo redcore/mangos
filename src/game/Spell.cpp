@@ -1061,13 +1061,6 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
         if (m_canTrigger && missInfo != SPELL_MISS_REFLECT)
             caster->ProcDamageAndSpell(unitTarget, procAttacker, procVictim, procEx, addhealth, m_attackType, m_spellInfo);
 
-        Unit::AuraList Aur = unitTarget->GetAurasByType(SPELL_AURA_DUMMY);
-        for (Unit::AuraList::iterator iter = Aur.begin(); iter != Aur.end(); ++iter)
-        {
-            if ((*iter)->GetId() == m_spellInfo->Id && (*iter)->GetCasterGUID() == caster->GetGUID())
-                (*iter)->SetHealingDoneBySpell(addhealth);
-        }
-
         int32 gain = caster->DealHeal(unitTarget, addhealth, m_spellInfo, crit);
         unitTarget->getHostileRefManager().threatAssist(caster, float(gain) * 0.5f, m_spellInfo);
     }
@@ -1091,12 +1084,12 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
         if (m_canTrigger && missInfo != SPELL_MISS_REFLECT)
             caster->ProcDamageAndSpell(unitTarget, procAttacker, procVictim, procEx, damageInfo.damage, m_attackType, m_spellInfo);
 
-        Unit::AuraList Aur = unitTarget->GetAurasByType(SPELL_AURA_DUMMY);
-        for (Unit::AuraList::iterator iter = Aur.begin(); iter != Aur.end(); ++iter)
-        {
-            if ((*iter)->GetId() == m_spellInfo->Id && (*iter)->GetCasterGUID() == caster->GetGUID())
-                (*iter)->SetDamageDoneBySpell(damageInfo.damage);
-        }
+        // Haunt (NOTE: for avoid use additional field damage stored in dummy value (replace unused 100%)
+        // apply before deal damage because aura can be removed at target kill
+        if (m_spellInfo->SpellFamilyName == SPELLFAMILY_WARLOCK && m_spellInfo->SpellIconID == 3172 &&
+            (m_spellInfo->SpellFamilyFlags & UI64LIT(0x0004000000000000)))
+            if(Aura* dummy = unitTarget->GetDummyAura(m_spellInfo->Id))
+                dummy->GetModifier()->m_amount = damageInfo.damage;
 
         caster->DealSpellDamage(&damageInfo, true);
     }
@@ -2814,12 +2807,6 @@ void Spell::cast(bool skipCheck)
     }
 
     FillTargetMap();
-
-    // let not attack nearby enemies when Seal of Command is triggered by Divine Storm
-    if (m_spellInfo->Id == 20424)
-        if (m_caster->FindCurrentSpellBySpellId(53385))
-            for (int numTargets = m_UniqueTargetInfo.size(); numTargets > 1; numTargets--)
-                m_UniqueTargetInfo.pop_back();
 
     if(m_spellState == SPELL_STATE_FINISHED)                // stop cast if spell marked as finish somewhere in FillTargetMap
     {
