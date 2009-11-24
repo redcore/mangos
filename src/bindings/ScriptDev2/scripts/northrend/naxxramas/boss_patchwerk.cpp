@@ -96,20 +96,8 @@ struct MANGOS_DLL_DECL boss_patchwerkAI : public ScriptedAI
         if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
             return;
 
-<<<<<<< .mine
         //HatefullStrike_Timer
         if (HatefullStrike_Timer < diff)
-=======
-    void DoHatefulStrike()
-    {
-        // The ability is used on highest HP target choosen of the top 2 (3 heroic) targets on threat list being in melee range
-        Unit* pTarget = NULL;
-        uint32 uiHighestHP = 0;
-        uint32 uiTargets = m_bIsRegularMode ? 2 : 3;
-
-        ThreatList const& tList = m_creature->getThreatManager().getThreatList();
-        for (ThreatList::const_iterator iter = tList.begin();iter != tList.end(); ++iter)
->>>>>>> .r1507
         {
             //Cast Hateful strike on the player with the highest
             //amount of HP within melee distance
