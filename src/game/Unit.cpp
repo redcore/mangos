@@ -5603,71 +5603,104 @@ bool Unit::HandleDummyAuraProc(Unit *pVictim, uint32 damage, Aura* triggeredByAu
                 return true;                                // no hidden cooldown
             }
 
-            // Divine Aegis
-            if (dummySpell->SpellIconID == 2820)
+            switch(dummySpell->SpellIconID)
             {
-                basepoints0 = damage * triggerAmount/100;
-                triggered_spell_id = 47753;
-                break;
-            }
-            // Improved Shadowform
-            else if (dummySpell->SpellIconID == 217)
-            {
-                if(!roll_chance_i(triggerAmount))
-                    return false;
-
-                RemoveSpellsCausingAura(SPELL_AURA_MOD_ROOT);
-                RemoveSpellsCausingAura(SPELL_AURA_MOD_DECREASE_SPEED);
-                break;
-            }
-            // Rapture (Ranks 1-3)
-            else if (dummySpell->SpellIconID == 2894)
-            {
-                switch(effIndex)
+                // Improved Shadowform
+                case 217:
                 {
-                    case 0:
-                    {
-                        // energize caster
-                        int32 manapct1000 = 5 * (triggerAmount + sSpellMgr.GetSpellRank(dummySpell->Id));
-                        int32 basepoints0 = this->GetMaxPower(POWER_MANA) * manapct1000 / 1000;
-                        CastCustomSpell(this, 47755, &basepoints0, NULL, NULL, true);
-                        break;
-                    }
-                    case 1:
-                    {
-                        // energize target
-                       if (!roll_chance_i(triggerAmount) || this->HasAura(63853))
-                           break;
+                    if(!roll_chance_i(triggerAmount))
+                        return false;
 
-                       switch(pVictim->getPowerType())
-                       {
-                            case POWER_RUNIC_POWER:
-                                pVictim->CastSpell(pVictim, 63652, true, NULL, triggeredByAura);
-                                break;
-                            case POWER_RAGE:
-                                pVictim->CastSpell(pVictim, 63653, true, NULL, triggeredByAura);
-                                break;
-                            case POWER_MANA:
-                            {
-                                int32 basepoints0 = pVictim->GetMaxPower(POWER_MANA) * 2 / 100;
-                                pVictim->CastCustomSpell(pVictim, 63654, &basepoints0, NULL, NULL, true, NULL, triggeredByAura);
-                                break;
-                            }
-                            case POWER_ENERGY:
-                                pVictim->CastSpell(pVictim, 63655, true, NULL, triggeredByAura);
-                                break;
-                            default:
-                                break;
-                       }
-                       //cooldown aura
-                       this->CastSpell(this, 63853, true);
-                       break;
-                    }
-                    default:
-                        sLog.outError("Changes in R-dummy spell???: effect 3");
-                        break;
+                    RemoveSpellsCausingAura(SPELL_AURA_MOD_ROOT);
+                    RemoveSpellsCausingAura(SPELL_AURA_MOD_DECREASE_SPEED);
+                    break;
                 }
-                return true;
+                // Divine Aegis
+                case 2820:
+                {
+                    basepoints0 = damage * triggerAmount/100;
+                    triggered_spell_id = 47753;
+                    break;
+                }
+                // Empowered Renew
+                case 3021:
+                {
+                    if (!procSpell)
+                        return false;
+
+                    Aura* healingAura = pVictim->GetAura(procSpell->Id,0);
+                    if (!healingAura)
+                        return false;
+
+                    int32 healingfromticks = SpellHealingBonus(pVictim, procSpell, (healingAura->GetModifier()->m_amount* GetSpellAuraMaxTicks(procSpell)), DOT);
+                    basepoints0 = healingfromticks * triggerAmount / 100;
+                    triggered_spell_id = 63544;
+                    break;
+                }
+                // Improved Devouring Plague
+                case 3790:
+                {
+                    if (!procSpell)
+                        return false;
+
+                    Aura* leachAura = pVictim->GetAura(procSpell->Id,0);
+                    if (!leachAura)
+                        return false;
+
+                    int32 damagefromticks = SpellDamageBonus(pVictim, procSpell, (leachAura->GetModifier()->m_amount* GetSpellAuraMaxTicks(procSpell)), DOT);
+                    basepoints0 = damagefromticks * triggerAmount / 100;
+                    triggered_spell_id = 63675;
+                    break;
+                }
+                // Rapture (Ranks 1-3)
+                case 2894:
+                {
+                    switch(effIndex)
+                    {
+                        case 0:
+                        {
+                            // energize caster
+                            int32 manapct1000 = 5 * (triggerAmount + sSpellMgr.GetSpellRank(dummySpell->Id));
+                            int32 basepoints0 = this->GetMaxPower(POWER_MANA) * manapct1000 / 1000;
+                            CastCustomSpell(this, 47755, &basepoints0, NULL, NULL, true);
+                            break;
+                        }
+                        case 1:
+                        {
+                            // energize target
+                           if (!roll_chance_i(triggerAmount) || this->HasAura(63853))
+                               break;
+
+                           switch(pVictim->getPowerType())
+                           {
+                                case POWER_RUNIC_POWER:
+                                    pVictim->CastSpell(pVictim, 63652, true, NULL, triggeredByAura);
+                                    break;
+                                case POWER_RAGE:
+                                    pVictim->CastSpell(pVictim, 63653, true, NULL, triggeredByAura);
+                                    break;
+                                case POWER_MANA:
+                                {
+                                    int32 basepoints0 = pVictim->GetMaxPower(POWER_MANA) * 2 / 100;
+                                    pVictim->CastCustomSpell(pVictim, 63654, &basepoints0, NULL, NULL, true, NULL, triggeredByAura);
+                                    break;
+                                }
+                                case POWER_ENERGY:
+                                    pVictim->CastSpell(pVictim, 63655, true, NULL, triggeredByAura);
+                                    break;
+                                default:
+                                    break;
+                           }
+                           //cooldown aura
+                           this->CastSpell(this, 63853, true);
+                           break;
+                        }
+                        default:
+                            sLog.outError("Changes in R-dummy spell???: effect 3");
+                            break;
+                    }
+                    break;
+                }
             }
 
             switch(dummySpell->Id)
@@ -5937,20 +5970,6 @@ bool Unit::HandleDummyAuraProc(Unit *pVictim, uint32 damage, Aura* triggeredByAu
                         return false;
 
                     triggered_spell_id = 32747;
-                    break;
-                }
-                // Tricks of the Trade
-                case 57934:
-                {
-                    if (this->GetTypeId() != TYPEID_PLAYER)
-                        return false;
-
-                    RedirectThreatEntry* entry = this->GetRedirectThreatEntry(57934);
-                    if (!entry)
-                        return false;
-
-                    triggered_spell_id = 59628;
-                    target = entry->m_redirectTo;
                     break;
                 }
             }
@@ -9479,6 +9498,7 @@ bool Unit::isSpellCrit(Unit *pVictim, SpellEntry const *spellProto, SpellSchoolM
                         // Lava Burst
                         if (spellProto->SpellFamilyFlags & UI64LIT(0x0000100000000000))
                         {
+                            // Flame Shock 
                             if (Aura *flameShock = pVictim->GetAura(SPELL_AURA_PERIODIC_DAMAGE, SPELLFAMILY_SHAMAN, UI64LIT(0x0000000010000000), 0, GetGUID()))
                                 return true;
                         }
@@ -10093,7 +10113,16 @@ uint32 Unit::MeleeDamageBonus(Unit *pVictim, uint32 pdamage,WeaponAttackType att
     TakenPercent *= pVictim->GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, schoolMask);
 
     // ..taken pct (by mechanic mask)
-    TakenPercent *= pVictim->GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_MECHANIC_DAMAGE_TAKEN_PERCENT, mechanicMask);
+    if (mechanicMask)
+    {
+        AuraList const& mTotalAuraList = GetAurasByType(SPELL_AURA_MOD_MECHANIC_DAMAGE_TAKEN_PERCENT);
+        for(AuraList::const_iterator i = mTotalAuraList.begin(); i != mTotalAuraList.end(); ++i)
+        {
+            Modifier* mod = (*i)->GetModifier();
+            if ((1<<(mod->m_miscvalue-1)) & mechanicMask)
+                TakenPercent *= (100.0f + mod->m_amount)/100.0f;
+        }
+    }
 
     // ..taken pct (melee/ranged)
     if(attType == RANGED_ATTACK)
@@ -10602,10 +10631,6 @@ bool Unit::isVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
             return false;
     }
 
-    // always seen by owner
-    if (GetCharmerOrOwnerGUID()==u->GetGUID())
-        return true;
-
     // always seen by far sight caster
     if (u->GetTypeId()==TYPEID_PLAYER && ((Player*)u)->GetFarSight()==GetGUID())
         return true;
@@ -10649,6 +10674,10 @@ bool Unit::isVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
         if (!IsWithinDistInMap(viewPoint, _map.GetVisibilityDistance() + (inVisibleList ? World::GetVisibleUnitGreyDistance() : 0.0f), is3dDistance))
             return false;
     }
+
+    // always seen by owner
+    if (GetCharmerOrOwnerGUID()==u->GetGUID())
+        return true;
 
     // isInvisibleForAlive() those units can only be seen by dead or if other
     // unit is also invisible for alive.. if an isinvisibleforalive unit dies we
@@ -11182,11 +11211,7 @@ void Unit::AddThreat(Unit* pVictim, float threat /*= 0.0f*/, bool crit /*= false
 
     // Only mobs can manage threat lists
     if(CanHaveThreatList())
-    {
-        float remainThreatPct = AddThreatToRedirectionTargets(pVictim,threat,crit,schoolMask,threatSpell);
-        if (remainThreatPct > 0)
-            m_ThreatManager.addThreat(pVictim, threat * remainThreatPct, crit, schoolMask, threatSpell);
-    }
+        m_ThreatManager.addThreat(pVictim, threat, crit, schoolMask, threatSpell);
 }
 
 //======================================================================

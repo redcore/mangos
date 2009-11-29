@@ -188,7 +188,7 @@ pEffect SpellEffects[TOTAL_SPELL_EFFECTS]=
     &Spell::EffectProspecting,                              //127 SPELL_EFFECT_PROSPECTING              Prospecting spell
     &Spell::EffectApplyAreaAura,                            //128 SPELL_EFFECT_APPLY_AREA_AURA_FRIEND
     &Spell::EffectApplyAreaAura,                            //129 SPELL_EFFECT_APPLY_AREA_AURA_ENEMY
-    &Spell::EffectRedirectThreat,                           //130 SPELL_EFFECT_REDIRECT_THREAT
+    &Spell::EffectNULL,                                     //130 SPELL_EFFECT_REDIRECT_THREAT
     &Spell::EffectUnused,                                   //131 SPELL_EFFECT_131                      used in some test spells
     &Spell::EffectPlayMusic,                                //132 SPELL_EFFECT_PLAY_MUSIC               sound id in misc value (SoundEntries.dbc)
     &Spell::EffectUnlearnSpecialization,                    //133 SPELL_EFFECT_UNLEARN_SPECIALIZATION   unlearn profession specialization
@@ -543,18 +543,19 @@ void Spell::EffectSchoolDMG(uint32 effect_idx)
                 // Ferocious Bite
                 if (m_caster->GetTypeId()==TYPEID_PLAYER && (m_spellInfo->SpellFamilyFlags & UI64LIT(0x000800000)) && m_spellInfo->SpellVisual[0]==6587)
                 {
-                    // converts each extra point of energy into ($f1+$AP/410) additional damage, not more than 30 energy
+                    // converts up to 30 points of energy into ($f1+$AP/410) additional damage
                     float ap = m_caster->GetTotalAttackPowerValue(BASE_ATTACK);
                     float multiple = ap / 410 + m_spellInfo->DmgMultiplier[effect_idx];
                     damage += int32(((Player*)m_caster)->GetComboPoints() * ap * 7 / 100);
-                    if (m_caster->GetPower(POWER_ENERGY) > 30)
+                    uint32 energy = m_caster->GetPower(POWER_ENERGY);
+                    if(energy > 30)
                     {
                         damage += int32(30 * multiple);
-                        m_caster->SetPower(POWER_ENERGY,(m_caster->GetPower(POWER_ENERGY) - 30));
+                        m_caster->SetPower(POWER_ENERGY,(energy-30));
                     }
                     else
                     {
-                        damage += int32(m_caster->GetPower(POWER_ENERGY) * multiple);
+                        damage += int32(energy * multiple);
                         m_caster->SetPower(POWER_ENERGY,0);
                     }
                 }
@@ -709,7 +710,7 @@ void Spell::EffectSchoolDMG(uint32 effect_idx)
                     float ap = m_caster->GetTotalAttackPowerValue(BASE_ATTACK);
                     int32 holy = m_caster->SpellBaseDamageBonus(GetSpellSchoolMask(m_spellInfo)) +
                                  m_caster->SpellBaseDamageBonusForVictim(GetSpellSchoolMask(m_spellInfo), unitTarget);
-                    damage += int32(ap * 0.2f) + int32(holy * 0.32f);
+                    damage += int32(ap * 0.2f + holy * 0.32f);
                 }
                 // Judgement of Vengeance/Corruption ${1+0.22*$SPH+0.14*$AP} + 10% for each application of Holy Vengeance/Blood Corruption on the target
                 if ((m_spellInfo->SpellFamilyFlags & UI64LIT(0x800000000)) && m_spellInfo->SpellIconID==2292)
@@ -1431,15 +1432,34 @@ void Spell::EffectDummy(uint32 i)
                     if (m_caster->GetTypeId() != TYPEID_PLAYER)
                         return;
 
-                    uint32 spell_id;
-                    switch(urand(1, 3))
+                    uint32 spell_id = 0;
+                    switch(m_caster->getClass())
                     {
-                        case 1: spell_id = 67016; break;
-                        case 2: spell_id = 67017; break;
-                        default:spell_id = 67018; break;
+                        case CLASS_WARRIOR:
+                        case CLASS_DEATH_KNIGHT:
+                            spell_id = 67018;               // STR for Warriors, Death Knights
+                            break;
+                        case CLASS_ROGUE:
+                        case CLASS_HUNTER:
+                            spell_id = 67017;               // AP for Rogues, Hunters
+                            break;
+                        case CLASS_PRIEST:
+                        case CLASS_MAGE:
+                        case CLASS_WARLOCK:
+                            spell_id = 67016;               // SPD for Priests, Mages, Warlocks
+                            break;
+                        case CLASS_SHAMAN:
+                            // random (SPD, AP)
+                            spell_id = roll_chance_i(50) ? 67016 : 67017;
+                            break;
+                        case CLASS_PALADIN:
+                        case CLASS_DRUID:
+                        default:
+                            // random (SPD, STR)
+                            spell_id = roll_chance_i(50) ? 67016 : 67018;
+                            break;
                     }
-
-                    m_caster->CastSpell(m_caster, spell_id, true, NULL);
+                    m_caster->CastSpell(m_caster, spell_id, true);
                     return;
                 }
             }
@@ -2858,8 +2878,16 @@ void Spell::EffectHeal( uint32 /*i*/ )
 
         int32 addhealth = damage;
 
+        // Seal of Light proc
+        if (m_spellInfo->Id == 20167)
+        {
+            float ap = caster->GetTotalAttackPowerValue(BASE_ATTACK);
+            int32 holy = caster->SpellBaseHealingBonus(GetSpellSchoolMask(m_spellInfo)) +
+                         caster->SpellBaseHealingBonusForVictim(GetSpellSchoolMask(m_spellInfo), unitTarget);
+            addhealth += int32(ap * 0.15 + holy * 0.15);  
+        }
         // Vessel of the Naaru (Vial of the Sunwell trinket)
-        if (m_spellInfo->Id == 45064)
+        else if (m_spellInfo->Id == 45064)
         {
             // Amount of heal - depends from stacked Holy Energy
             int damageAmount = 0;
@@ -3592,35 +3620,6 @@ void Spell::EffectApplyAreaAura(uint32 i)
 
     AreaAura* Aur = new AreaAura(m_spellInfo, i, &m_currentBasePoints[i], unitTarget, m_caster, m_CastItem);
     unitTarget->AddAura(Aur);
-}
-
-void Spell::EffectRedirectThreat(uint32 i)
-{
-    if(!unitTarget)
-        return;
-    if(!unitTarget->isAlive())
-        return;
-
-    Unit* redirectFrom = 0; Unit* redirectTo = 0;
-    // Check by ID is sufficient as such spells have no ranks
-    switch (m_spellInfo->Id)
-    {
-        // Tricks of the Trade, Misdirection
-        case 57934: case 34477:
-            redirectFrom = m_caster;
-            redirectTo = unitTarget;
-            break;
-        // Vigilance
-        case 59665:
-            redirectFrom = unitTarget;
-            redirectTo = m_caster;
-            break;
-        // No need to continue
-        default:
-            return;
-    }
-
-    redirectFrom->AddRedirectThreatEntry(redirectTo,m_spellInfo->Id,float(damage)/100.0f);
 }
 
 void Spell::EffectSummonType(uint32 i)
@@ -5010,8 +5009,10 @@ void Spell::EffectWeaponDmg(uint32 i)
             // Judgement of Command - receive benefit from Spell Damage and Attack Power
             if(m_spellInfo->SpellFamilyFlags & UI64LIT(0x00020000000000))
             {
-                spell_bonus += int32(0.07f*m_caster->GetTotalAttackPowerValue(BASE_ATTACK));
-                spell_bonus += int32(0.13f*m_caster->SpellBaseDamageBonus(GetSpellSchoolMask(m_spellInfo)));
+                float ap = m_caster->GetTotalAttackPowerValue(BASE_ATTACK);
+                int32 holy = m_caster->SpellBaseDamageBonus(GetSpellSchoolMask(m_spellInfo)) +
+                             m_caster->SpellBaseDamageBonusForVictim(GetSpellSchoolMask(m_spellInfo), unitTarget);
+                spell_bonus += int32(ap * 0.08f + holy * 0.13f);
             }
             break;
         }
@@ -5344,10 +5345,6 @@ void Spell::EffectScriptEffect(uint32 effIndex)
 {
     // TODO: we must implement hunter pet summon at login there (spell 6962)
 
-    // Guarded by Light
-    if (m_spellInfo->Id == 63521 && m_caster && m_caster->HasAura(54428))
-        m_caster->GetAura(54428, 0)->RefreshAura();
-
     switch(m_spellInfo->SpellFamilyName)
     {
         case SPELLFAMILY_GENERIC:
@@ -5638,15 +5635,6 @@ void Spell::EffectScriptEffect(uint32 effIndex)
 
                     break;
                 }
-                // Vigilance
-                case 50725:
-                    if(RedirectThreatEntry* entry = m_caster->GetRedirectThreatEntry(59665))
-                    {
-                        // We must remove Taunt cooldown from Warrior when this spell triggers
-                        if (entry->m_redirectTo->GetTypeId() == TYPEID_PLAYER)
-                            ((Player*)entry->m_redirectTo)->RemoveSpellCooldown(355,true);
-                    }
-                    return;
                 // Emblazon Runeblade
                 case 51770:
                 {
@@ -5845,6 +5833,18 @@ void Spell::EffectScriptEffect(uint32 effIndex)
                            (spellInfo->SpellFamilyFlags & UI64LIT(0x0000000000000002)) &&
                            (*itr).second->GetCasterGUID()==m_caster->GetGUID())
                            (*itr).second->RefreshAura();
+                    }
+                    return;
+                }
+                // (Paladin spell with SPELLFAMILY_WARLOCK) - Guarded by The Light
+                case 63521:
+                {
+                    // Refresh Divine Plea on target (3 aura slots)
+                    Unit::AuraMap& dpAuras = unitTarget->GetAuras();
+                    for(Unit::AuraMap::iterator itr = dpAuras.begin(); itr != dpAuras.end(); ++itr)
+                    {
+                        if((*itr).second->GetId() == 54428)
+                            (*itr).second->RefreshAura();
                     }
                     return;
                 }

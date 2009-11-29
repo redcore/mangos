@@ -116,8 +116,6 @@ typedef std::vector<uint32> AutoSpellList;
 
 #define ACTIVE_SPELLS_MAX           4
 
-#define OWNER_MAX_DISTANCE 100.0f
-
 #define PET_FOLLOW_DIST  1
 #define PET_FOLLOW_ANGLE (M_PI/2)
 
@@ -224,6 +222,9 @@ class Pet : public Creature
         uint32  m_usedTalentCount;
 
         RedirectThreatMap* getRedirectThreatMap() { return &m_redirectMap; }
+        const uint64& GetAuraUpdateMask() const { return m_auraUpdateMask; }
+        void SetAuraUpdateMask(uint8 slot) { m_auraUpdateMask |= (uint64(1) << slot); }
+        void ResetAuraUpdateMask() { m_auraUpdateMask = 0; }
 
         // overwrite Creature function for name localization back to WorldObject version without localization
         const char* GetNameForLocaleIdx(int32 locale_idx) const { return WorldObject::GetNameForLocaleIdx(locale_idx); }
@@ -249,8 +250,5 @@ class Pet : public Creature
         {
             assert(false);
         }
-
-        // Map used to control threat redirection effects
-        RedirectThreatMap m_redirectMap;
 };
 #endif

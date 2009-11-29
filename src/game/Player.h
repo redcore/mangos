@@ -571,6 +571,25 @@ enum QuestSlotStateMask
     QUEST_STATE_FAIL     = 0x0002
 };
 
+enum SkillUpdateState
+{
+    SKILL_UNCHANGED     = 0,
+    SKILL_CHANGED       = 1,
+    SKILL_NEW           = 2,
+    SKILL_DELETED       = 3
+};
+
+struct SkillStatusData
+{
+    SkillStatusData(uint8 _pos, SkillUpdateState _uState) : pos(_pos), uState(_uState)
+    {
+    }
+    uint8 pos;
+    SkillUpdateState uState;
+};
+
+typedef UNORDERED_MAP<uint32, SkillStatusData> SkillStatusMap;
+
 class Quest;
 class Spell;
 class Item;
@@ -904,7 +923,8 @@ enum PlayerLoginQueryIndex
     PLAYER_LOGIN_QUERY_LOADACCOUNTDATA          = 22,
     PLAYER_LOGIN_QUERY_LOADGLYPHS               = 23,
     PLAYER_LOGIN_QUERY_LOADTALENTS              = 24,
-    MAX_PLAYER_LOGIN_QUERY                      = 25
+    PLAYER_LOGIN_QUERY_LOADSKILLS               = 25,
+    MAX_PLAYER_LOGIN_QUERY                      = 26
 };
 
 enum PlayerDelayedOperations
@@ -2146,8 +2166,6 @@ class MANGOS_DLL_SPEC Player : public Unit
         }
         void HandleFall(MovementInfo const& movementInfo);
 
-        RedirectThreatMap* getRedirectThreatMap() { return &m_redirectMap; }
-
         void BuildTeleportAckMsg( WorldPacket *data, float x, float y, float z, float ang) const;
 
         bool isMoving() const { return m_movementInfo.HasMovementFlag(movementFlagsMask); }
@@ -2359,7 +2377,7 @@ class MANGOS_DLL_SPEC Player : public Unit
         void _LoadQuestStatus(QueryResult *result);
         void _LoadDailyQuestStatus(QueryResult *result);
         void _LoadGroup(QueryResult *result);
-        void _LoadSkills();
+        void _LoadSkills(QueryResult *result);
         void _LoadSpells(QueryResult *result);
         void _LoadFriendList(QueryResult *result);
         bool _LoadHomeBind(QueryResult *result);
@@ -2380,6 +2398,7 @@ class MANGOS_DLL_SPEC Player : public Unit
         void _SaveMail();
         void _SaveQuestStatus();
         void _SaveDailyQuestStatus();
+        void _SaveSkills();
         void _SaveSpells();
         void _SaveEquipmentSets();
         void _SaveBGData();
@@ -2428,6 +2447,8 @@ class MANGOS_DLL_SPEC Player : public Unit
         int8 m_comboPoints;
 
         QuestStatusMap mQuestStatus;
+
+        SkillStatusMap mSkillStatus;
 
         uint32 m_GuildIdInvited;
         uint32 m_ArenaTeamIdInvited;
@@ -2602,9 +2623,6 @@ class MANGOS_DLL_SPEC Player : public Unit
 
         AchievementMgr m_achievementMgr;
         ReputationMgr  m_reputationMgr;
-
-        // Map used to control threat redirection effects
-        RedirectThreatMap m_redirectMap;
 };
 
 void AddItemsSetItem(Player*player,Item *item);

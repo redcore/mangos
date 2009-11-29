@@ -2444,7 +2444,7 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
         // Vampiric Touch
         if (caster && (GetSpellProto()->SpellFamilyFlags & UI64LIT(0x40000000000)) && m_removeMode==AURA_REMOVE_BY_DISPEL)
         {
-            int32 basepoints = GetSpellProto()->EffectBasePoints[1] * 4;
+            int32 basepoints = GetSpellProto()->EffectBasePoints[1] * 8;
             basepoints = caster->SpellDamageBonus(m_target, GetSpellProto(), basepoints, DOT);
             m_target->CastCustomSpell(m_target, 64085, &basepoints, NULL, NULL, false);
             return;
@@ -2465,20 +2465,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
 
                     m_target->CastSpell(m_target, spellId, true, NULL, this);
                 }
-                return;
-            }
-            case 34477:                                     // Misdirection - aura applied to spell caster
-            {
-                // We must remove target to which threat is redirected
-                m_target->RemoveRedirectThreatEntry(34477);
-                return;
-            }
-            case 35079:                                     // Misdirection - aura applied to spell target
-            {
-                if (m_removeMode == AURA_REMOVE_BY_STACK)
-                    // We must remove 34477 aura from first caster due to
-                    // "Caster and target can only be affected by one Misdirection spell at a time"
-                    GetCaster()->RemoveAurasDueToSpellByCancel(34477);
                 return;
             }
             case 45934:                                     // Dark Fiend
@@ -2639,21 +2625,6 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     else
                         m_target->m_AuraFlags |= ~UNIT_AURAFLAG_ALIVE_INVISIBLE;
                     return;
-                // Tricks of the Trade - 15% damage bonus effect for redirection target
-                case 59628:
-                    if (m_target->GetTypeId() == TYPEID_PLAYER)
-                    {
-                        RedirectThreatEntry* entry = m_target->GetRedirectThreatEntry(57934);
-                        if (!entry)
-                            return;
-
-                        if (apply && entry->m_redirectTo->isAlive())
-                                caster->CastSpell(entry->m_redirectTo,57933,true);
-                        else
-                            // We must remove target to which threat is redirected
-                            m_target->RemoveRedirectThreatEntry(57934);
-                    }
-                    return;
             }
             break;
         }
@@ -2681,7 +2652,7 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 else
                 {
                     int32 bp0 = m_modifier.m_amount;
-                    caster->CastCustomSpell(caster,48210,&bp0,NULL,NULL,true);
+                    m_target->CastCustomSpell(caster,48210,&bp0,NULL,NULL,true);
                 }
             }
             break;
@@ -4696,14 +4667,6 @@ void Aura::HandleAuraProcTriggerSpell(bool apply, bool Real)
             default: break;
         }
     }
-
-    // Vigilance. We must apply threat redirect (59665) in some aura of main spell. Don't know where it's better to do it :(
-    if (GetId() == 50720)
-        if (apply)
-            GetCaster()->CastSpell(m_target,59665,true);
-        else
-            // We must remove target to which threat is redirected
-            m_target->RemoveRedirectThreatEntry(59665);
 }
 
 void Aura::HandleAuraModStalked(bool apply, bool /*Real*/)
@@ -4756,18 +4719,31 @@ void Aura::HandlePeriodicEnergize(bool apply, bool Real)
     {
         switch (GetId())
         {
-            case 29166: //Innervate
+            case 54833: //Glyph of Innervate (value% of casters base mana)
             {
-                Player *caster = sObjectMgr.GetPlayer(m_caster_guid);
-                if (caster) m_modifier.m_amount = caster->GetCreateMana() * 45 / 200;
+                Unit* caster = GetCaster();
+                if (caster)
+                    m_modifier.m_amount = (int)(caster->GetCreateMana() * GetBasePoints() / (200 * m_maxduration / m_periodicTimer));
+                break;
+
+            }
+            case 29166: //Innervate (value% of casters base mana)
+            {
+                Unit* caster = GetCaster();
+                if (caster)
+                {
+                    if (caster->HasAura(54832))
+                        caster->CastSpell(caster,54833,true);
+                    m_modifier.m_amount = (int)(caster->GetCreateMana() * GetBasePoints() / (100 * m_maxduration / m_periodicTimer));
+                }
                 break;
             }
             case 48391:                                     // Owlkin Frenzy 2% base mana
                 m_modifier.m_amount = m_target->GetCreateMana() * 2 / 100;
                 break;
-            case 57669:                                     // Replenishment (0.25% from max)
+            case 57669:                                     // Replenishment (0.2% from max)
             case 61782:                                     // Infinite Replenishment
-                m_modifier.m_amount = m_target->GetMaxPower(POWER_MANA) * 25 / 10000;
+                m_modifier.m_amount = m_target->GetMaxPower(POWER_MANA) * 2 / 1000;
                 break;
             default:
                 break;
@@ -5006,10 +4982,11 @@ void Aura::HandlePeriodicDamage(bool apply, bool Real)
                 {
                     if (caster->GetTypeId() != TYPEID_PLAYER)
                         return;
-                    // 0.013 * SPH + 0.025 * AP bonus per tick
+                    // AP * 0.025 + SPH * 0.013 bonus per tick
                     float ap = caster->GetTotalAttackPowerValue(BASE_ATTACK);
-                    int32 holy = ((Player*)caster)->SpellBaseDamageBonus(GetSpellSchoolMask(m_spellProto));
-                    m_modifier.m_amount += int32(0.013 * holy + 0.025 * ap);
+                    int32 holy = ((Player*)caster)->SpellBaseDamageBonus(GetSpellSchoolMask(m_spellProto)) +
+                                 ((Player*)caster)->SpellBaseDamageBonusForVictim(GetSpellSchoolMask(m_spellProto), GetTarget());
+                    m_modifier.m_amount += int32(ap * 0.025f + holy * 0.013f);
                     return;
                 }
                 break;
@@ -6669,7 +6646,7 @@ void Aura::HandleSchoolAbsorb(bool apply, bool Real)
             m_target->RemoveAurasDueToSpell(remove_spell);
         }
 
-        /*// Ice Barrier (remove effect from Shattered Barrier)
+        /* // Ice Barrier (remove effect from Shattered Barrier)
         if (m_spellProto->SpellIconID == 32 && m_spellProto->SpellFamilyName == SPELLFAMILY_MAGE)
         {
             if (!((m_removeMode == AURA_REMOVE_BY_DEFAULT && !m_modifier.m_amount) || m_removeMode == AURA_REMOVE_BY_DISPEL))
