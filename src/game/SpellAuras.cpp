@@ -2337,7 +2337,7 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     if (Unit* caster = GetCaster())
                         m_target->AddThreat(caster, 10.0f, false, GetSpellSchoolMask(GetSpellProto()), GetSpellProto());
                 return;
-            case 13139:                                     // net-o-matic
+			case 13139:                                     // net-o-matic
                 // root to self part of (root_target->charge->root_self sequence
                 if (Unit* caster = GetCaster())
                     caster->CastSpell(caster, 13138, true, NULL, this);
@@ -2679,6 +2679,7 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
         }
         case SPELLFAMILY_PRIEST:
         {
+			Unit* caster = GetCaster();
             if (m_spellProto->SpellIconID == 225 && caster && caster->GetTypeId() == TYPEID_PLAYER)
             {
                 if (apply && m_target)
