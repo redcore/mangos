@@ -221,7 +221,6 @@ class Pet : public Creature
         time_t  m_resetTalentsTime;
         uint32  m_usedTalentCount;
 
-        RedirectThreatMap* getRedirectThreatMap() { return &m_redirectMap; }
         const uint64& GetAuraUpdateMask() const { return m_auraUpdateMask; }
         void SetAuraUpdateMask(uint8 slot) { m_auraUpdateMask |= (uint64(1) << slot); }
         void ResetAuraUpdateMask() { m_auraUpdateMask = 0; }
