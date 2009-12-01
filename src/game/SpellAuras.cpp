@@ -2679,9 +2679,13 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
         }
         case SPELLFAMILY_PRIEST:
         {
-			Unit* caster = GetCaster();
+            Unit* caster = GetCaster();
             if (m_spellProto->SpellIconID == 225 && caster && caster->GetTypeId() == TYPEID_PLAYER)
             {
+                Unit* caster = GetCaster();
+                if (!caster || caster->GetTypeId() != TYPEID_PLAYER)
+                    return;
+
                 if (apply && m_target)
                     ((Player*)caster)->SetSelection(m_target->GetGUID());
                 return;
