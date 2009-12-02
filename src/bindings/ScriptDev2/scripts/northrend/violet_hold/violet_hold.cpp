@@ -281,7 +281,7 @@ bool GossipHello_npc_sinclari(Player* pPlayer, Creature* pCreature)
         pPlayer->PrepareQuestMenu( pCreature->GetGUID() );
 
     pPlayer->ADD_GOSSIP_ITEM( 0, "I am ready.", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+1);
-    pPlayer->SEND_GOSSIP_MENU(pCreature->GetNpcTextId(), pCreature->GetGUID());
+    pPlayer->SEND_GOSSIP_MENU(pPlayer->GetGossipTextId(pCreature), pCreature->GetGUID());
 
     return true;
 }
