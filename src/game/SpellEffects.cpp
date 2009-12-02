@@ -2743,6 +2743,47 @@ void Spell::EffectApplyAura(uint32 i)
     if(!caster)
         return;
 
+	switch(m_spellInfo->Id)
+	{
+		case 23920:				// Improved Spell Reflection
+		{	
+			
+			if (m_caster->GetTypeId() == TYPEID_PLAYER)
+			{
+				 Player* pPlayer = (Player*)m_caster;
+				 
+				 int count = 0;
+				 if(pPlayer->HasTalent(59088, pPlayer->GetActiveSpec())) count = 2;
+				 if(pPlayer->HasTalent(59089, pPlayer->GetActiveSpec())) count = 4;
+							 
+				 if (count == 0)
+					break;
+					  
+				 Group *pGroup = pPlayer->GetGroup();
+				 if (pGroup)
+				 {
+					 for (GroupReference *itr = pGroup->GetFirstMember(); itr != NULL; itr = itr->next())
+					 {
+							Player* pGroupie = itr->getSource();
+
+							if (count == 0)
+								break;
+
+							if (!pGroupie || (pPlayer->GetGUID() == pGroupie->GetGUID()))
+							 continue;
+
+							if (pPlayer->IsWithinDistInMap(pGroupie, 20.0f) && (pGroupie->GetSubGroup() == pPlayer->GetSubGroup()) && pGroupie->isAlive() && pGroupie->IsInWorld())
+							{
+								pGroupie->CastSpell(pGroupie, 43443, false);
+								count--;
+							}
+					 } 
+				 }
+			 }
+			 break;
+		}
+	}
+
     sLog.outDebug("Spell: Aura is: %u", m_spellInfo->EffectApplyAuraName[i]);
 
     Aura* Aur = CreateAura(m_spellInfo, i, &m_currentBasePoints[i], unitTarget, caster, m_CastItem);
