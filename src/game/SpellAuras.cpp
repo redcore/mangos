@@ -2329,6 +2329,37 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
     // AT APPLY
     if(apply)
     {
+		Unit* caster = GetCaster();
+		// Overpower
+        if (caster && m_spellProto->SpellFamilyName == SPELLFAMILY_WARRIOR &&
+            m_spellProto->SpellFamilyFlags & 0x4)
+        {
+			Player* pPlayer;
+
+			if (caster->GetTypeId() == TYPEID_PLAYER)
+				pPlayer = (Player*)caster;
+			if (!pPlayer) return;
+            // Must be casting target
+            if (!m_target->IsNonMeleeSpellCasted(false, false, true))
+                return;
+
+            // Unrelenting Assault, rank 2
+            if (pPlayer->HasTalent( 46860, pPlayer->GetActiveSpec()))
+			{
+                m_target->CastSpell(m_target,64850,true);
+                return;
+			}
+
+            // Unrelenting Assault, rank 1
+			if (pPlayer->HasTalent( 46859, pPlayer->GetActiveSpec()))
+			{
+                m_target->CastSpell(m_target,64849,true);
+                return;
+			}
+                                  
+            return;
+        }
+
         switch(GetId())
         {
             case 1515:                                      // Tame beast
@@ -4405,7 +4436,7 @@ void Aura::HandleModTaunt(bool apply, bool Real)
     }
 
 	if (GetSpellProto()->Id == 62124)
-	{CleanDamage
+	{
 		caster->DealDamage(m_target, (caster->GetTotalAttackPowerValue(BASE_ATTACK)*0.5f + 1), NULL, SPELL_DIRECT_DAMAGE, SPELL_SCHOOL_MASK_HOLY, GetSpellProto(), false);
 	}
 
