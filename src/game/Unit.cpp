@@ -432,6 +432,63 @@ void Unit::DealDamageMods(Unit *pVictim, uint32 &damage, uint32* absorb)
 
 uint32 Unit::DealDamage(Unit *pVictim, uint32 damage, CleanDamage const* cleanDamage, DamageEffectType damagetype, SpellSchoolMask damageSchoolMask, SpellEntry const *spellProto, bool durabilityLoss)
 {
+	if (GetTypeId() == TYPEID_PLAYER && spellProto)  //Divine Storm heal part
+    {
+        
+        if (spellProto->Id == 53385)
+        {
+			int32 divineDmg = damage / 4;
+			int count = 3;
+
+			Player* pPlayer = (Player*)this;
+			Player* pRaidGrpMember;
+
+			CastCustomSpell(pPlayer, 54172, &divineDmg, 0, 0, false);
+
+            Group* pGroup = pPlayer->GetGroup();
+			if (!pGroup)
+			{
+				return damage;
+			}
+						
+			std::vector<Unit*> nearMembers;
+			nearMembers.reserve(pGroup->GetMembersCount());
+			
+			for (GroupReference *itr = pGroup->GetFirstMember(); itr != NULL; itr = itr->next())
+			{   
+				if (!(pRaidGrpMember = itr->getSource()))
+					continue;
+
+				if (pRaidGrpMember != pPlayer && pRaidGrpMember->isAlive() && pRaidGrpMember->IsInWorld() && IsWithinDistInMap(pRaidGrpMember, 30.0f) && !IsHostileTo(pRaidGrpMember))
+                nearMembers.push_back(pRaidGrpMember);
+			}
+			
+			if (nearMembers.size() == 0)
+			{
+				return damage;
+			}
+			
+			for (int i = 0 ; i < nearMembers.size(); i++)
+			{
+				if (i > 3)
+				{
+					return damage;
+				}
+				
+				uint32 randTarget = urand(0,nearMembers.size()-1);
+				if ( nearMembers.size() < 3 )
+				{
+					CastCustomSpell(nearMembers[i], 54172, &divineDmg, 0, 0, false);
+				}
+				else
+				{
+					uint32 randTarget = urand(0,(nearMembers.size()-1));
+					CastCustomSpell(nearMembers[randTarget], 54172, &divineDmg, 0, 0, false);
+				}
+			}
+        }
+    }
+
     // remove affects from victim (including from 0 damage and DoTs)
     if(pVictim != this)
         pVictim->RemoveSpellsCausingAura(SPELL_AURA_MOD_STEALTH);
