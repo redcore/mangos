@@ -3799,6 +3799,11 @@ bool Unit::RemoveNoStackAurasDueToAura(Aura *Aur)
 
         uint32 i_spellId = i_spellProto->Id;
 
+		if (spellId == 47753 || i_spellId == 47753)
+			continue;
+		if ((spellId == 25899 && i_spellId == 53601) || (i_spellId == 25899 && spellId == 53601) )
+			continue;
+
         // early checks that spellId is passive non stackable spell
         if(IsPassiveSpell(i_spellId))
         {
