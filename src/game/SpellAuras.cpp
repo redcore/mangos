@@ -4403,6 +4403,12 @@ void Aura::HandleModTaunt(bool apply, bool Real)
         // When taunt aura fades out, mob will switch to previous target if current has less than 1.1 * secondthreat
         m_target->TauntFadeOut(caster);
     }
+
+	if (GetSpellProto()->Id == 62124)
+	{CleanDamage
+		caster->DealDamage(m_target, (caster->GetTotalAttackPowerValue(BASE_ATTACK)*0.5f + 1), NULL, SPELL_DIRECT_DAMAGE, SPELL_SCHOOL_MASK_HOLY, GetSpellProto(), false);
+	}
+
 }
 
 /*********************************************************/
